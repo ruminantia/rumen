@@ -1,0 +1,25 @@
+services:
+  rumen:
+    build: .
+    container_name: rumen
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - ./input:/app/input
+      - ./bolus:/app/bolus
+    environment:
+      - PYTHONPATH=/app/src
+      - PYTHONUNBUFFERED=1
+    env_file:
+      - .env
+    restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    networks:
+      - rumen-network
+
+networks:
+  rumen-network:
+    driver: bridge

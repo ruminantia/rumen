@@ -1,0 +1,2 @@
+# This file ensures the bolus directory is tracked by git
+# Processed output files will be saved to this directory by Rumen
