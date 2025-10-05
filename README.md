@@ -5,7 +5,7 @@ Rumen is a containerized API for interacting with Large Language Models (LLMs) v
 ## Features
 
 - **Multiple LLM Providers**: Support for OpenRouter, OpenAI, Google Gemini, and DeepSeek
-- **Dual Operation Modes**: 
+- **Dual Operation Modes**:
   - HTTP API for direct interaction
   - File monitoring for automated processing
 - **Secure by Design**: API key authentication and internal networking
@@ -24,7 +24,7 @@ Rumen is a containerized API for interacting with Large Language Models (LLMs) v
 ### 1. Clone and Setup
 
 ```bash
-git clone <repository-url>
+git clone <https://github.com/ruminantia/rumen.git>
 cd rumen
 ```
 
