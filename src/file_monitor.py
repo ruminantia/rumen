@@ -75,7 +75,6 @@ class FileProcessor:
 
         try:
             self.processing_files.add(file_path)
-            logger.info(f"Processing file: {file_path}")
 
             # Read file content
             with open(file_path, "r", encoding="utf-8") as f:
@@ -91,8 +90,7 @@ class FileProcessor:
             )
 
             if success:
-                logger.info(f"Successfully processed file: {file_path}")
-                # Optionally move or delete the processed file
+                # Clean up the processed file
                 self._cleanup_file(file_path)
             else:
                 logger.error(f"Failed to process file: {file_path}")
@@ -293,8 +291,6 @@ class FileMonitor:
     def _process_file_sync(self, file_path: Path, folder_config: FolderConfig):
         """Process a file synchronously for existing files at startup."""
         try:
-            logger.info(f"Processing file: {file_path}")
-
             # Read file content
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
@@ -328,7 +324,6 @@ class FileMonitor:
                 folder_config=folder_config,
             )
 
-            logger.info(f"Successfully processed file: {file_path}")
             # Clean up the processed file
             self.file_processor._cleanup_file(file_path)
 
