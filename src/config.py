@@ -69,11 +69,21 @@ class FolderConfig(BaseModel):
     output_format: str = Field(
         default="markdown", description="Output format (markdown, json)"
     )
+    output_directory: Optional[Path] = Field(
+        default=None, description="Custom output directory for this folder (optional)"
+    )
 
     @validator("folder_path")
     def validate_folder_path(cls, v):
         """Ensure folder path is absolute."""
         if not v.is_absolute():
+            return Path("/app") / v
+        return v
+
+    @validator("output_directory")
+    def validate_output_directory(cls, v):
+        """Ensure output directory is absolute if provided."""
+        if v is not None and not v.is_absolute():
             return Path("/app") / v
         return v
 
@@ -261,15 +271,18 @@ class ConfigManager:
             if section.getboolean("enabled", False):
                 folder_configs[section_name] = FolderConfig(
                     name=section_name,
-                    folder_path=Path(section.get("folder_path")),
+                    folder_path=Path(section.get("folder_path", "")),
                     enabled=True,
-                    system_prompt=section.get("system_prompt"),
-                    user_prompt_template=section.get("user_prompt_template"),
+                    system_prompt=section.get("system_prompt", ""),
+                    user_prompt_template=section.get("user_prompt_template", ""),
                     provider=section.get("provider", "openrouter"),
                     model=section.get("model", "google/gemini-2.5-flash-lite"),
                     temperature=float(section.get("temperature", "0.7")),
                     max_tokens=int(section.get("max_tokens", "2048")),
                     output_format=section.get("output_format", "markdown"),
+                    output_directory=Path(section["output_directory"])
+                    if section.get("output_directory")
+                    else None,
                 )
 
         return folder_configs

@@ -17,9 +17,10 @@ logger = logging.getLogger(__name__)
 class FileProcessor:
     """Handles file processing logic."""
 
-    def __init__(self, process_callback: Callable):
+    def __init__(self, process_callback: Callable, settings):
         self.process_callback = process_callback
         self.processing_files: Set[Path] = set()
+        self.settings = settings
 
     def should_process_file(self, file_path: Path) -> bool:
         """
@@ -58,7 +59,7 @@ class FileProcessor:
 
         return True
 
-    def process_file(self, file_path: Path, folder_config: FolderConfig) -> bool:
+    async def process_file(self, file_path: Path, folder_config: FolderConfig) -> bool:
         """
         Process a single file.
 
@@ -85,7 +86,7 @@ class FileProcessor:
                 return False
 
             # Call the processing callback
-            success = self.process_callback(
+            success = await self.process_callback(
                 content=content, file_path=file_path, folder_config=folder_config
             )
 
@@ -106,29 +107,18 @@ class FileProcessor:
 
     def _cleanup_file(self, file_path: Path):
         """
-        Clean up processed file by moving it to a processed directory or deleting it.
+        Clean up processed file by deleting it (no longer moving to processed directory).
 
         Args:
             file_path: Path to the processed file
         """
         try:
-            # Create processed directory
-            processed_dir = file_path.parent / "processed"
-            processed_dir.mkdir(exist_ok=True)
-
-            # Move file to processed directory
-            new_path = processed_dir / file_path.name
-            file_path.rename(new_path)
-            logger.debug(f"Moved processed file to: {new_path}")
+            # Simply delete the processed file since results are now saved to output directory
+            file_path.unlink()
+            logger.debug(f"Deleted processed file: {file_path}")
 
         except Exception as e:
-            logger.warning(f"Could not move processed file {file_path}: {e}")
-            # If moving fails, just delete the file
-            try:
-                file_path.unlink()
-                logger.debug(f"Deleted processed file: {file_path}")
-            except Exception as e2:
-                logger.error(f"Could not delete processed file {file_path}: {e2}")
+            logger.warning(f"Could not delete processed file {file_path}: {e}")
 
 
 class FolderEventHandler(FileSystemEventHandler):
@@ -138,6 +128,7 @@ class FolderEventHandler(FileSystemEventHandler):
         self.folder_config = folder_config
         self.file_processor = file_processor
         self.pending_files: Dict[Path, float] = {}
+        self.settings = file_processor.settings
 
     def on_created(self, event):
         """Handle file creation events."""
@@ -169,17 +160,19 @@ class FolderEventHandler(FileSystemEventHandler):
 
         # Check which files are ready to process
         for file_path, timestamp in list(self.pending_files.items()):
-            if (
-                current_time - timestamp
-                >= self.file_processor.process_callback.__self__.settings.file_monitor.file_timeout
-            ):
+            if current_time - timestamp >= self.settings.file_monitor.file_timeout:
                 files_to_process.append(file_path)
                 del self.pending_files[file_path]
 
         # Process ready files
         for file_path in files_to_process:
             if file_path.exists():
-                self.file_processor.process_file(file_path, self.folder_config)
+                # Run the async processing function
+                import asyncio
+
+                asyncio.run(
+                    self.file_processor.process_file(file_path, self.folder_config)
+                )
 
 
 class FileMonitor:
@@ -188,7 +181,7 @@ class FileMonitor:
     def __init__(self, process_callback: Callable, settings):
         self.settings = settings
         self.process_callback = process_callback
-        self.file_processor = FileProcessor(process_callback)
+        self.file_processor = FileProcessor(process_callback, settings)
         self.observer = Observer()
         self.event_handlers: Dict[str, FolderEventHandler] = {}
         self.running = False
@@ -214,7 +207,11 @@ class FileMonitor:
         for folder_name, folder_config in enabled_folders.items():
             self._start_folder_monitoring(folder_name, folder_config)
 
-        if self.observer._watchers:
+        if hasattr(self.observer, "_watchers") and self.observer._watchers:
+            self.observer.start()
+            self.running = True
+            logger.info("File monitor started successfully")
+        elif self.observer._handlers:
             self.observer.start()
             self.running = True
             logger.info("File monitor started successfully")
@@ -279,18 +276,64 @@ class FileMonitor:
                 # Process all markdown files in the folder
                 for file_path in folder_path.glob("*.md"):
                     if self.file_processor.should_process_file(file_path):
-                        self.file_processor.process_file(file_path, folder_config)
+                        # Use synchronous processing for existing files at startup
+                        self._process_file_sync(file_path, folder_config)
 
                 for file_path in folder_path.glob("*.markdown"):
                     if self.file_processor.should_process_file(file_path):
-                        self.file_processor.process_file(file_path, folder_config)
+                        self._process_file_sync(file_path, folder_config)
 
                 for file_path in folder_path.glob("*.txt"):
                     if self.file_processor.should_process_file(file_path):
-                        self.file_processor.process_file(file_path, folder_config)
+                        self._process_file_sync(file_path, folder_config)
 
             except Exception as e:
                 logger.error(f"Error processing existing files in {folder_path}: {e}")
+
+    def _process_file_sync(self, file_path: Path, folder_config: FolderConfig):
+        """Process a file synchronously for existing files at startup."""
+        try:
+            logger.info(f"Processing file: {file_path}")
+
+            # Read file content
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+
+            if not content.strip():
+                logger.warning(f"Empty file: {file_path}")
+                return
+
+            # Import here to avoid circular imports
+            from .main import llm_client, output_handler
+
+            # Process content with LLM
+            processed_content = llm_client.process_content(
+                content=content,
+                system_prompt=folder_config.system_prompt,
+                user_prompt_template=folder_config.user_prompt_template,
+            )
+
+            # Save the result
+            output_handler.save_result(
+                content=processed_content,
+                original_filename=str(file_path),
+                folder_name=folder_config.name,
+                output_format=folder_config.output_format,
+                metadata={
+                    "original_file": str(file_path),
+                    "folder": folder_config.name,
+                    "model": folder_config.model,
+                    "provider": folder_config.provider,
+                },
+                folder_config=folder_config,
+            )
+
+            logger.info(f"Successfully processed file: {file_path}")
+            # Clean up the processed file
+            self.file_processor._cleanup_file(file_path)
+
+        except Exception as e:
+            logger.error(f"Error processing file {file_path}: {e}")
 
     def run_monitoring_loop(self):
         """Run the main monitoring loop."""

@@ -116,6 +116,7 @@ async def process_file_content(content: str, file_path: str, folder_config) -> b
                 "model": folder_config.model,
                 "provider": folder_config.provider,
             },
+            folder_config=folder_config,
         )
 
         logger.info(f"Successfully processed content from {file_path}")
@@ -133,6 +134,7 @@ async def process_file_content(content: str, file_path: str, folder_config) -> b
                 "folder_config": folder_config.name,
                 "file_path": file_path,
             },
+            folder_config=folder_config,
         )
         return False
 
@@ -149,6 +151,13 @@ async def lifespan(app: FastAPI):
         file_monitor.start()
         # Process any existing files
         file_monitor.process_existing_files()
+        # Start the monitoring loop in a background thread
+        import threading
+
+        monitoring_thread = threading.Thread(
+            target=file_monitor.run_monitoring_loop, daemon=True
+        )
+        monitoring_thread.start()
 
     yield
 
@@ -192,7 +201,7 @@ async def root():
 
 
 @app.get("/health")
-async def health_check(_: str = Depends(verify_api_key)):
+async def health_check():
     """Health check endpoint."""
     try:
         # Check LLM provider health
