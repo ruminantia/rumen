@@ -13,6 +13,7 @@ Rumen is a containerized API for interacting with Large Language Models (LLMs) v
 - **Prompt Management**: Store complex prompts as individual files for better organization
 - **Error Handling**: Graceful retries and comprehensive error logging
 - **Containerized**: Easy deployment with Docker and Docker Compose
+- **External Volume Support**: Monitor Docker volumes for automated processing
 - **API Security**: Bearer token authentication for all endpoints
 
 ## Quick Start
@@ -267,6 +268,57 @@ rumen/
 │   ├── test_rumen.sh      # Comprehensive bash tests
 │   └── test_rumen.py      # Python test suite
 ```
+
+## External Volumes
+
+Rumen supports monitoring external Docker volumes for automated processing. This is useful for integrating with other systems that generate content.
+
+### Adding External Volumes
+
+1. **Define the volume in docker-compose.yml**:
+```yaml
+volumes:
+  pasture_pastures:
+    external: true
+```
+
+2. **Mount the volume in the service**:
+```yaml
+services:
+  rumen:
+    volumes:
+      - pasture_pastures:/app/pasture_pastures
+```
+
+3. **Configure the folder in config.ini**:
+```ini
+[pasture_pastures]
+folder_path = /app/pasture_pastures
+enabled = true
+system_prompt = Your custom system prompt
+user_prompt_template = Your custom user prompt template: {content}
+provider = gemini
+model = gemini-2.5-flash-lite
+temperature = 0.4
+max_tokens = 2048
+output_format = markdown
+```
+
+### Example Use Case: Pasture Pastures
+
+The system includes a pre-configured example for monitoring scraped news/web articles from an external volume called "pasture_pastures":
+
+- **Volume**: `pasture_pastures` (external Docker volume)
+- **Mount Point**: `/app/pasture_pastures`
+- **Structure**: Articles organized recursively by `/year/month/day/feed/hash.md`
+- **Processing**: Automatically analyzes new articles as they appear
+
+### Volume Management
+
+- **External Volumes**: Must be created separately before starting Rumen
+- **Permissions**: Ensure the container has read access to mounted volumes
+- **Structure**: The system can handle nested directory structures
+- **Performance**: File monitoring works efficiently even with thousands of files
 
 ## Security
 

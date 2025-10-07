@@ -21,7 +21,7 @@ COPY config/ ./config/
 COPY prompts/ ./prompts/
 
 # Create directories for file monitoring
-RUN mkdir -p /app/input /app/bolus /app/prompts
+RUN mkdir -p /app/input /app/bolus /app/prompts /app/pasture_pastures
 
 # Set environment variables
 ENV PYTHONPATH=/app/src
