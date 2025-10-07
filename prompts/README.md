@@ -1,6 +1,23 @@
 # Prompts Directory
 
-This directory contains prompt files for the Rumen LLM API system. Instead of storing complex prompts directly in the `config.ini` file, you can now store them as individual markdown files for better organization and maintainability.
+> [!NOTE]
+> This documentation has been moved to the main documentation directory.
+> For the most up-to-date information, see [Prompt Management](../docs/configuration/prompt-management.md) in the main documentation.
+
+This directory contains prompt files for the Rumen LLM API system. Instead of storing complex prompts directly in the `config.ini` file, you can store them as individual markdown files for better organization and maintainability.
+
+## 📚 Documentation
+
+For comprehensive documentation on prompt management, including:
+- Using prompt files vs inline prompts
+- Prompt design best practices
+- Advanced prompt techniques
+- Testing and iteration strategies
+
+Please refer to the main documentation:
+- [Prompt Management Guide](../docs/configuration/prompt-management.md)
+- [Configuration Guide](../docs/configuration/configuration.md)
+- [Quick Start Guide](../docs/getting-started/quick-start.md)
 
 ## Structure
 
@@ -84,13 +101,30 @@ Please analyze this news article and provide a comprehensive analysis:
 
 If a prompt file is not found or cannot be read, the system will fall back to using the inline `system_prompt` and `user_prompt_template` values from the config.ini file (if provided).
 
-## Troubleshooting
+## 🚀 Quick Reference
 
-- **File Not Found**: Ensure the file paths in config.ini are correct relative to the application root
-- **Permission Issues**: Verify the application has read access to the prompt files
-- **Encoding Problems**: Use UTF-8 encoding for all prompt files to handle special characters
-- **Template Errors**: Ensure user prompt templates contain the `{content}` placeholder
+### Basic Usage
+```ini
+[my_folder]
+system_prompt_file = prompts/my_system.md
+user_prompt_file = prompts/my_user.md
+```
 
-## Docker Deployment
+### File Naming Convention
+- `{folder_name}_system.md` - System prompt defining AI role
+- `{folder_name}_user.md` - User prompt template with `{content}` placeholder
 
-When deploying with Docker, the prompts directory is automatically copied into the container at `/app/prompts/`. The config.ini file paths should use relative paths like `prompts/filename.md`.
+## 🔗 Related Documentation
+
+- [Prompt Management Guide](../docs/configuration/prompt-management.md) - Complete guide to prompt files
+- [Configuration Guide](../docs/configuration/configuration.md) - Main configuration options
+- [Folder Monitoring](../docs/configuration/folder-monitoring.md) - File processing setup
+- [API Reference](../docs/api/overview.md) - HTTP API documentation
+
+## 🆘 Troubleshooting
+
+For troubleshooting help, see the [Troubleshooting Guide](../docs/advanced/troubleshooting.md) in the main documentation.
+
+---
+
+*This directory contains prompt files. For detailed documentation, refer to the main documentation in the `docs/` directory.*
