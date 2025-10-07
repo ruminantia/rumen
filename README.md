@@ -9,7 +9,8 @@ Rumen is a containerized API for interacting with Large Language Models (LLMs) v
   - HTTP API for direct interaction
   - File monitoring for automated processing
 - **Secure by Design**: API key authentication and internal networking
-- **Configurable Processing**: Custom prompts and parameters per monitored folder
+- **Configurable Processing**: Custom prompts and parameters per monitored folder, with support for prompt files
+- **Prompt Management**: Store complex prompts as individual files for better organization
 - **Error Handling**: Graceful retries and comprehensive error logging
 - **Containerized**: Easy deployment with Docker and Docker Compose
 - **API Security**: Bearer token authentication for all endpoints
@@ -105,8 +106,12 @@ Add folder configurations for automated processing:
 [worldnews]
 folder_path = /app/input/worldnews
 enabled = false
-system_prompt = You are a news analyst. Analyze the provided news article and extract key information, summarize the main points, and provide context.
-user_prompt_template = Please analyze this news article: {content}
+# Use prompt files for complex prompts (recommended)
+system_prompt_file = prompts/worldnews_system.md
+user_prompt_file = prompts/worldnews_user.md
+# Or use inline prompts for simple cases
+# system_prompt = You are a news analyst. Analyze the provided news article and extract key information, summarize the main points, and provide context.
+# user_prompt_template = Please analyze this news article: {content}
 provider = openrouter
 model = google/gemini-2.5-flash-lite
 temperature = 0.3
@@ -116,8 +121,12 @@ output_format = markdown
 [research]
 folder_path = /app/input/research
 enabled = false
-system_prompt = You are a research assistant. Analyze the provided research material and extract key insights, summarize findings, and identify potential applications.
-user_prompt_template = Please analyze this research material: {content}
+# Use prompt files for complex prompts (recommended)
+system_prompt_file = prompts/research_system.md
+user_prompt_file = prompts/research_user.md
+# Or use inline prompts for simple cases
+# system_prompt = You are a research assistant. Analyze the provided research material and extract key insights, summarize findings, and identify potential applications.
+# user_prompt_template = Please analyze this research material: {content}
 provider = openrouter
 model = google/gemini-2.5-flash-lite
 temperature = 0.5
@@ -239,7 +248,12 @@ rumen/
 │   ├── config.py          # Configuration management
 │   ├── llm_client.py      # LLM provider clients
 │   ├── file_monitor.py    # File system monitoring
-│   └── output_handler.py  # Result output management
+├── output_handler.py  # Result output management
+├── prompts/           # Prompt files for complex system and user prompts
+│   ├── worldnews_system.md
+│   ├── worldnews_user.md
+│   ├── research_system.md
+│   └── research_user.md
 ├── config/
 │   └── config.ini         # Main configuration file
 ├── input/                 # Input files for processing
@@ -358,6 +372,38 @@ python -m src.main
 ## License
 
 This project is licensed under the terms of the LICENSE file included in the repository.
+
+## Prompt Files
+
+For complex prompts, you can store them as individual files in the `prompts/` directory instead of embedding them in `config.ini`. This provides better organization and maintainability.
+
+### Using Prompt Files
+
+1. **Create prompt files** in the `prompts/` directory:
+   - `{folder_name}_system.md` - System prompt defining the AI's role
+   - `{folder_name}_user.md` - User prompt template with `{content}` placeholder
+
+2. **Reference them in config.ini**:
+```ini
+[worldnews]
+folder_path = /app/input/worldnews
+enabled = true
+system_prompt_file = prompts/worldnews_system.md
+user_prompt_file = prompts/worldnews_user.md
+provider = gemini
+model = gemini-2.5-flash-lite
+temperature = 0.3
+max_tokens = 1024
+```
+
+### Benefits
+
+- **Better Organization**: Complex prompts are easier to read and maintain
+- **Version Control**: Track prompt changes independently from configuration
+- **Reusability**: Share prompts across multiple folder configurations
+- **Collaboration**: Multiple team members can work on prompts simultaneously
+
+See the `prompts/README.md` for detailed documentation and examples.
 
 ## Contributing
 

@@ -9,6 +9,29 @@ from pathlib import Path
 import configparser
 
 
+class PromptFileConfig(BaseModel):
+    """Configuration for prompt file references."""
+
+    system_prompt_file: Optional[Path] = Field(
+        default=None, description="Path to system prompt file"
+    )
+    user_prompt_file: Optional[Path] = Field(
+        default=None, description="Path to user prompt template file"
+    )
+
+    @validator("system_prompt_file", "user_prompt_file")
+    def validate_prompt_file_path(cls, v):
+        """Ensure prompt file paths are resolved correctly."""
+        if v is not None:
+            # Convert to Path if it's a string
+            path = Path(v) if isinstance(v, str) else v
+            # If it's a relative path, resolve it relative to the current working directory
+            if not path.is_absolute():
+                return Path.cwd() / path
+            return path
+        return v
+
+
 class LLMSettings(BaseModel):
     """Settings for LLM provider configuration."""
 
@@ -72,6 +95,9 @@ class FolderConfig(BaseModel):
     output_directory: Optional[Path] = Field(
         default=None, description="Custom output directory for this folder (optional)"
     )
+    prompt_files: PromptFileConfig = Field(
+        default_factory=PromptFileConfig, description="Prompt file configuration"
+    )
 
     @validator("folder_path")
     def validate_folder_path(cls, v):
@@ -86,6 +112,40 @@ class FolderConfig(BaseModel):
         if v is not None and not v.is_absolute():
             return Path("/app") / v
         return v
+
+    def load_system_prompt(self) -> str:
+        """Load system prompt from file if specified, otherwise use configured prompt."""
+        if (
+            self.prompt_files.system_prompt_file
+            and self.prompt_files.system_prompt_file.exists()
+        ):
+            try:
+                with open(
+                    self.prompt_files.system_prompt_file, "r", encoding="utf-8"
+                ) as f:
+                    return f.read().strip()
+            except Exception as e:
+                raise ValueError(
+                    f"Failed to load system prompt from {self.prompt_files.system_prompt_file}: {e}"
+                )
+        return self.system_prompt
+
+    def load_user_prompt_template(self) -> str:
+        """Load user prompt template from file if specified, otherwise use configured template."""
+        if (
+            self.prompt_files.user_prompt_file
+            and self.prompt_files.user_prompt_file.exists()
+        ):
+            try:
+                with open(
+                    self.prompt_files.user_prompt_file, "r", encoding="utf-8"
+                ) as f:
+                    return f.read().strip()
+            except Exception as e:
+                raise ValueError(
+                    f"Failed to load user prompt template from {self.prompt_files.user_prompt_file}: {e}"
+                )
+        return self.user_prompt_template
 
 
 class APISettings(BaseModel):
@@ -283,6 +343,14 @@ class ConfigManager:
                     output_directory=Path(section["output_directory"])
                     if section.get("output_directory")
                     else None,
+                    prompt_files=PromptFileConfig(
+                        system_prompt_file=Path(section["system_prompt_file"])
+                        if section.get("system_prompt_file")
+                        else None,
+                        user_prompt_file=Path(section["user_prompt_file"])
+                        if section.get("user_prompt_file")
+                        else None,
+                    ),
                 )
 
         return folder_configs

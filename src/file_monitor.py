@@ -305,8 +305,8 @@ class FileMonitor:
             # Process content with LLM
             processed_content = llm_client.process_content(
                 content=content,
-                system_prompt=folder_config.system_prompt,
-                user_prompt_template=folder_config.user_prompt_template,
+                system_prompt=folder_config.load_system_prompt(),
+                user_prompt_template=folder_config.load_user_prompt_template(),
             )
 
             # Save the result

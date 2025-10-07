@@ -18,9 +18,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY src/ ./src/
 COPY config/ ./config/
+COPY prompts/ ./prompts/
 
 # Create directories for file monitoring
-RUN mkdir -p /app/input /app/bolus
+RUN mkdir -p /app/input /app/bolus /app/prompts
 
 # Set environment variables
 ENV PYTHONPATH=/app/src
