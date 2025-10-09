@@ -8,7 +8,7 @@ services:
       - ./config:/app/config:ro
       - ./input:/app/input
       - ./bolus:/app/bolus
-      - pasture_pastures:/app/pasture_pastures
+      - pastures:/app/pastures
     environment:
       - PYTHONPATH=/app/src
       - PYTHONUNBUFFERED=1
@@ -26,5 +26,5 @@ networks:
     driver: bridge
 
 volumes:
-  pasture_pastures:
+  pastures:
     external: true

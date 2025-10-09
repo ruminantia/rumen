@@ -241,7 +241,7 @@ class FileMonitor:
             self.observer.schedule(
                 event_handler,
                 str(folder_path),
-                recursive=False,  # Don't watch subdirectories
+                recursive=True,  # Watch subdirectories recursively
             )
             logger.info(f"Started monitoring folder: {folder_path}")
         except Exception as e:
@@ -271,17 +271,16 @@ class FileMonitor:
             logger.info(f"Processing existing files in: {folder_path}")
 
             try:
-                # Process all markdown files in the folder
-                for file_path in folder_path.glob("*.md"):
-                    if self.file_processor.should_process_file(file_path):
-                        # Use synchronous processing for existing files at startup
-                        self._process_file_sync(file_path, folder_config)
-
-                for file_path in folder_path.glob("*.markdown"):
+                # Process all markdown files recursively
+                for file_path in folder_path.rglob("*.md"):
                     if self.file_processor.should_process_file(file_path):
                         self._process_file_sync(file_path, folder_config)
 
-                for file_path in folder_path.glob("*.txt"):
+                for file_path in folder_path.rglob("*.markdown"):
+                    if self.file_processor.should_process_file(file_path):
+                        self._process_file_sync(file_path, folder_config)
+
+                for file_path in folder_path.rglob("*.txt"):
                     if self.file_processor.should_process_file(file_path):
                         self._process_file_sync(file_path, folder_config)
 
