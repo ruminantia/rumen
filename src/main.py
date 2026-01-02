@@ -4,6 +4,7 @@ Main application for Rumen LLM API and file monitoring system.
 
 import os
 import secrets
+from pathlib import Path
 
 import logging
 import signal
@@ -12,20 +13,29 @@ from contextlib import asynccontextmanager
 
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, Header
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from starlette.middleware.base import BaseHTTPMiddleware
 import uvicorn
 
 from .config import get_settings, Settings
 from .llm_client import LLMClientFactory, LLMClient
 from .file_monitor import FileMonitor
 from .output_handler import OutputHandler
+from .web_viewer import create_web_viewer
 
 # Configure logging
+log_dir = Path("/app/logs")
+log_dir.mkdir(exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(log_dir / "rumen.log")
+    ],
 )
 logger = logging.getLogger(__name__)
 
@@ -34,6 +44,7 @@ settings: Settings = None
 llm_client: LLMClient = None
 file_monitor: FileMonitor = None
 output_handler: OutputHandler = None
+monitoring_thread = None
 
 # Security
 security = HTTPBearer()
@@ -78,6 +89,57 @@ def initialize_application():
     except Exception as e:
         logger.error(f"Failed to initialize application: {e}")
         raise
+
+
+def reload_application_settings():
+    """Reload application settings from config file."""
+    global settings, llm_client, file_monitor, output_handler, monitoring_thread
+
+    try:
+        logger.info("Reloading application settings...")
+
+        # Stop the old file monitor if it's running
+        old_monitor_running = file_monitor and file_monitor.running
+        if old_monitor_running:
+            logger.info("Stopping old file monitor...")
+            file_monitor.stop()
+
+        # Reload settings from disk (force reload to bypass cache)
+        new_settings = get_settings(force_reload=True)
+        settings = new_settings
+
+        # Reinitialize LLM client
+        llm_client = LLMClientFactory.create_client(settings.llm)
+        logger.info(f"LLM client reinitialized for provider: {settings.llm.provider}")
+
+        # Reinitialize output handler
+        output_handler = OutputHandler(settings.output)
+        logger.info(f"Output handler reinitialized for: {settings.output.output_directory}")
+
+        # Reinitialize file monitor
+        file_monitor = FileMonitor(process_file_content, settings)
+        logger.info("File monitor reinitialized")
+
+        # Start the new file monitor
+        file_monitor.start()
+        logger.info("File monitor started")
+
+        # Process any existing files
+        file_monitor.process_existing_files()
+
+        # Create a new monitoring thread
+        import threading
+        monitoring_thread = threading.Thread(
+            target=file_monitor.run_monitoring_loop, daemon=True
+        )
+        monitoring_thread.start()
+        logger.info("File monitoring thread started")
+
+        logger.info("Application settings reloaded successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to reload application settings: {e}")
+        return False
 
 
 async def process_file_content(content: str, file_path: str, folder_config) -> bool:
@@ -142,6 +204,8 @@ async def process_file_content(content: str, file_path: str, folder_config) -> b
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle."""
+    global monitoring_thread
+
     # Startup
     logger.info("Starting Rumen application...")
     initialize_application()
@@ -179,6 +243,27 @@ async def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(sec
     return credentials.credentials
 
 
+# Generate web viewer before starting the app
+try:
+    logger.info("Generating web viewer...")
+    create_web_viewer("/app/viewer")
+    logger.info("Web viewer created successfully")
+except Exception as e:
+    logger.warning(f"Failed to generate web viewer: {e}")
+
+
+# Cache control middleware to prevent caching of API responses
+class CacheControlMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        # Add cache-control headers to API responses
+        if request.url.path.startswith('/api/'):
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+        return response
+
+
 # Create FastAPI application
 app = FastAPI(
     title="Rumen LLM API",
@@ -187,17 +272,22 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Add cache control middleware
+app.add_middleware(CacheControlMiddleware)
+
+# Mount static files for web viewer
+try:
+    app.mount("/viewer", StaticFiles(directory="/app/viewer"), name="viewer")
+    logger.info("Web viewer mounted at /viewer/")
+except Exception as e:
+    logger.warning(f"Failed to mount web viewer: {e}")
+
 
 @app.get("/")
 async def root():
-    """Root endpoint with basic information."""
-    return {
-        "message": "Rumen LLM API",
-        "version": "1.0.0",
-        "status": "running",
-        "llm_provider": settings.llm.provider if settings else "unknown",
-        "authentication_required": True,
-    }
+    """Root endpoint - redirect to web viewer."""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/viewer/index.html")
 
 
 @app.get("/health")
@@ -336,8 +426,8 @@ async def list_results(limit: int = 10, _: str = Depends(verify_api_key)):
 
 
 @app.post("/file-monitor/start")
-async def start_file_monitor(_: str = Depends(verify_api_key)):
-    """Start the file monitor."""
+async def start_file_monitor():
+    """Start the file monitor (no auth required for web UI)."""
     try:
         if file_monitor:
             file_monitor.start()
@@ -352,8 +442,8 @@ async def start_file_monitor(_: str = Depends(verify_api_key)):
 
 
 @app.post("/file-monitor/stop")
-async def stop_file_monitor(_: str = Depends(verify_api_key)):
-    """Stop the file monitor."""
+async def stop_file_monitor():
+    """Stop the file monitor (no auth required for web UI)."""
     try:
         if file_monitor:
             file_monitor.stop()
@@ -377,6 +467,236 @@ async def get_file_monitor_status(_: str = Depends(verify_api_key)):
         }
     else:
         raise HTTPException(status_code=503, detail="File monitor not initialized")
+
+
+# ===== Web Viewer API Endpoints =====
+
+@app.get("/api/web/status")
+async def get_web_status():
+    """Get system status for web viewer (no auth required for web UI)."""
+    total_input_files = 0
+    total_output_files = 0
+
+    for folder_config in settings.folders.values():
+        folder_path = folder_config.folder_path
+        if folder_path.exists():
+            # Count input files
+            total_input_files += len(list(folder_path.rglob("*.md")))
+            total_input_files += len(list(folder_path.rglob("*.txt")))
+
+    # Count output files
+    output_path = settings.output.output_directory
+    if output_path.exists():
+        total_output_files = len(list(output_path.rglob("*.md")))
+
+    return {
+        "file_monitor_running": file_monitor.running if file_monitor else False,
+        "enabled_folders": len([f for f in settings.folders.values() if f.enabled]),
+        "total_input_files": total_input_files,
+        "total_output_files": total_output_files,
+    }
+
+
+@app.get("/api/web/folders")
+async def get_web_folders():
+    """Get folder configurations for web viewer (no auth required for web UI)."""
+    folders = []
+    for name, folder_config in settings.folders.items():
+        folder_path = folder_config.folder_path
+        input_files = 0
+        if folder_path.exists():
+            input_files = len(list(folder_path.rglob("*.md"))) + len(list(folder_path.rglob("*.txt")))
+
+        folders.append({
+            "name": name,
+            "path": str(folder_config.folder_path),
+            "enabled": folder_config.enabled,
+            "provider": folder_config.provider,
+            "model": folder_config.model,
+            "input_files": input_files,
+            "delete_input_files": folder_config.delete_input_files if folder_config.delete_input_files is not None else settings.file_monitor.delete_input_files,
+        })
+    return folders
+
+
+@app.get("/api/web/config")
+async def get_web_config():
+    """Get config.ini content for web viewer (no auth required for web UI)."""
+    try:
+        config_path = Path("/app/config/config.ini")
+        if config_path.exists():
+            with open(config_path, "r") as f:
+                return {"success": True, "content": f.read()}
+        else:
+            return {"success": False, "error": "Config file not found"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/web/config")
+async def save_web_config(request: dict):
+    """Save config.ini content from web viewer (no auth required for web UI)."""
+    try:
+        content = request.get("content")
+        if not content:
+            return {"success": False, "error": "No content provided"}
+
+        config_path = Path("/app/config/config.ini")
+        with open(config_path, "w") as f:
+            f.write(content)
+
+        # Reload application settings
+        reload_success = reload_application_settings()
+        if not reload_success:
+            return {"success": False, "error": "Configuration saved but failed to reload settings"}
+
+        return {"success": True, "message": "Configuration saved and reloaded"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/web/logs")
+async def get_web_logs():
+    """Get system logs for web viewer (no auth required for web UI)."""
+    import io
+    from contextlib import redirect_stderr
+
+    # Capture recent logs
+    log_buffer = io.StringIO()
+    handler = logging.StreamHandler(log_buffer)
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+
+    # Get root logger
+    root_logger = logging.getLogger()
+    root_logger.addHandler(handler)
+
+    # Generate some logs
+    logs = log_buffer.getvalue()
+
+    # Return actual log content if available
+    log_file = Path("/app/logs/rumen.log")
+    if log_file.exists():
+        with open(log_file, "r") as f:
+            # Return last 1000 lines
+            lines = f.readlines()
+            logs = "".join(lines[-1000:])
+    else:
+        logs = f"No log file found. System status: {'Running' if file_monitor and file_monitor.running else 'Stopped'}"
+
+    root_logger.removeHandler(handler)
+    return Response(content=logs, media_type="text/plain")
+
+
+@app.get("/api/web/files/input/{folder_name}")
+async def get_input_files(folder_name: str):
+    """Get input files for a specific folder."""
+    try:
+        if folder_name not in settings.folders:
+            return []
+
+        folder_config = settings.folders[folder_name]
+        folder_path = folder_config.folder_path
+
+        if not folder_path.exists():
+            return []
+
+        files = []
+        for file_path in folder_path.rglob("*.md"):
+            if file_path.is_file():
+                stat = file_path.stat()
+                files.append({
+                    "name": file_path.name,
+                    "path": str(file_path),
+                    "size": stat.st_size,
+                    "modified": stat.st_mtime
+                })
+
+        for file_path in folder_path.rglob("*.txt"):
+            if file_path.is_file():
+                stat = file_path.stat()
+                files.append({
+                    "name": file_path.name,
+                    "path": str(file_path),
+                    "size": stat.st_size,
+                    "modified": stat.st_mtime
+                })
+
+        return files
+    except Exception as e:
+        logger.error(f"Error listing input files: {e}")
+        return []
+
+
+@app.get("/api/web/files/output/{folder_name}")
+async def get_output_files(folder_name: str):
+    """Get output files for a specific folder."""
+    try:
+        output_path = settings.output.output_directory
+
+        if not output_path.exists():
+            return []
+
+        files = []
+
+        if folder_name == "all":
+            # Get all output files
+            for file_path in output_path.rglob("*.md"):
+                if file_path.is_file():
+                    stat = file_path.stat()
+                    files.append({
+                        "name": file_path.name,
+                        "path": str(file_path),
+                        "size": stat.st_size,
+                        "modified": stat.st_mtime
+                    })
+        else:
+            # Get files for specific folder (if it has a custom output directory)
+            if folder_name in settings.folders:
+                folder_config = settings.folders[folder_name]
+                if folder_config.output_directory:
+                    folder_output = folder_config.output_directory
+                else:
+                    folder_output = output_path / folder_name
+
+                if folder_output.exists():
+                    for file_path in folder_output.rglob("*.md"):
+                        if file_path.is_file():
+                            stat = file_path.stat()
+                            files.append({
+                                "name": file_path.name,
+                                "path": str(file_path),
+                                "size": stat.st_size,
+                                "modified": stat.st_mtime
+                            })
+
+        return files
+    except Exception as e:
+        logger.error(f"Error listing output files: {e}")
+        return []
+
+
+@app.get("/api/web/file/content")
+async def get_file_content(path: str):
+    """Get content of a specific file."""
+    try:
+        file_path = Path(path)
+
+        # Security check - only allow files from /app directory
+        if not str(file_path).startswith("/app"):
+            return {"success": False, "error": "Access denied"}
+
+        if not file_path.exists():
+            return {"success": False, "error": "File not found"}
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        return {"success": True, "content": content}
+    except Exception as e:
+        logger.error(f"Error reading file: {e}")
+        return {"success": False, "error": str(e)}
 
 
 def signal_handler(signum, frame):

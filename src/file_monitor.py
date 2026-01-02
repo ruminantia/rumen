@@ -40,6 +40,11 @@ class FileProcessor:
         if file_path.name.startswith(".") or file_path.name.endswith("~"):
             return False
 
+        # Skip already processed files
+        if self._is_file_processed(file_path):
+            logger.debug(f"Skipping already processed file: {file_path}")
+            return False
+
         # Only process markdown files by default
         if file_path.suffix.lower() not in [".md", ".markdown", ".txt"]:
             logger.debug(f"Skipping non-markdown file: {file_path}")
@@ -58,6 +63,46 @@ class FileProcessor:
             return False
 
         return True
+
+    def _is_file_processed(self, file_path: Path) -> bool:
+        """
+        Check if a file has already been processed.
+
+        Args:
+            file_path: Path to the file
+
+        Returns:
+            True if the file has been processed
+        """
+        # Check if filename contains .processed. marker
+        return ".processed." in file_path.name
+
+    def _mark_file_processed(self, file_path: Path) -> bool:
+        """
+        Mark a file as processed by renaming it with a .processed. marker.
+
+        Args:
+            file_path: Path to the file
+
+        Returns:
+            Path to the marked file if successful, None otherwise
+        """
+        try:
+            # Insert .processed. before the file extension
+            # e.g., "document.md" -> "document.processed.md"
+            stem = file_path.stem
+            suffix = file_path.suffix
+            new_name = f"{stem}.processed{suffix}"
+            new_path = file_path.parent / new_name
+
+            # Rename the file
+            file_path.rename(new_path)
+            logger.debug(f"Marked file as processed: {file_path} -> {new_path}")
+            return new_path
+
+        except Exception as e:
+            logger.error(f"Failed to mark file as processed {file_path}: {e}")
+            return None
 
     async def process_file(self, file_path: Path, folder_config: FolderConfig) -> bool:
         """
@@ -90,8 +135,21 @@ class FileProcessor:
             )
 
             if success:
-                # Clean up the processed file
-                self._cleanup_file(file_path)
+                # Determine whether to delete input files (per-folder setting or global default)
+                should_delete = (
+                    folder_config.delete_input_files
+                    if folder_config.delete_input_files is not None
+                    else self.settings.file_monitor.delete_input_files
+                )
+
+                if should_delete:
+                    # Mark as processed first, then delete
+                    marked_path = self._mark_file_processed(file_path)
+                    if marked_path:
+                        self._cleanup_file(marked_path)
+                else:
+                    # Just mark as processed without deleting
+                    self._mark_file_processed(file_path)
             else:
                 logger.error(f"Failed to process file: {file_path}")
 
@@ -105,7 +163,7 @@ class FileProcessor:
 
     def _cleanup_file(self, file_path: Path):
         """
-        Clean up processed file by deleting it (no longer moving to processed directory).
+        Clean up processed file by deleting it.
 
         Args:
             file_path: Path to the processed file
@@ -323,8 +381,21 @@ class FileMonitor:
                 folder_config=folder_config,
             )
 
-            # Clean up the processed file
-            self.file_processor._cleanup_file(file_path)
+            # Clean up the processed file if configured to do so
+            should_delete = (
+                folder_config.delete_input_files
+                if folder_config.delete_input_files is not None
+                else self.settings.file_monitor.delete_input_files
+            )
+
+            if should_delete:
+                # Mark as processed first, then delete
+                marked_path = self.file_processor._mark_file_processed(file_path)
+                if marked_path:
+                    self.file_processor._cleanup_file(marked_path)
+            else:
+                # Just mark as processed without deleting
+                self.file_processor._mark_file_processed(file_path)
 
         except Exception as e:
             logger.error(f"Error processing file {file_path}: {e}")

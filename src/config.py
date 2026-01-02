@@ -98,6 +98,10 @@ class FolderConfig(BaseModel):
     prompt_files: PromptFileConfig = Field(
         default_factory=PromptFileConfig, description="Prompt file configuration"
     )
+    delete_input_files: Optional[bool] = Field(
+        default=None,
+        description="Whether to delete input files after processing (None = use global setting)",
+    )
 
     @validator("folder_path")
     def validate_folder_path(cls, v):
@@ -166,6 +170,10 @@ class FileMonitorSettings(BaseModel):
     )
     file_timeout: int = Field(
         default=30, ge=10, le=300, description="File processing timeout in seconds"
+    )
+    delete_input_files: bool = Field(
+        default=True,
+        description="Whether to delete input files after successful processing",
     )
 
 
@@ -303,6 +311,7 @@ class ConfigManager:
         return FileMonitorSettings(
             monitor_interval=int(default_section.get("monitor_interval", "5")),
             file_timeout=int(default_section.get("file_timeout", "30")),
+            delete_input_files=default_section.getboolean("delete_input_files", True),
         )
 
     def _load_output_settings(self) -> OutputSettings:
@@ -327,31 +336,39 @@ class ConfigManager:
 
             section = self.parser[section_name]
 
-            # Only process folder configurations that are enabled
-            if section.getboolean("enabled", False):
-                folder_configs[section_name] = FolderConfig(
-                    name=section_name,
-                    folder_path=Path(section.get("folder_path", "")),
-                    enabled=True,
-                    system_prompt=section.get("system_prompt", ""),
-                    user_prompt_template=section.get("user_prompt_template", ""),
-                    provider=section.get("provider", "openrouter"),
-                    model=section.get("model", "google/gemini-2.5-flash-lite"),
-                    temperature=float(section.get("temperature", "0.7")),
-                    max_tokens=int(section.get("max_tokens", "2048")),
-                    output_format=section.get("output_format", "markdown"),
-                    output_directory=Path(section["output_directory"])
-                    if section.get("output_directory")
+            # Load all folder configurations, both enabled and disabled
+            enabled = section.getboolean("enabled", False)
+
+            # Skip sections without folder_path (not folder configs)
+            if not section.get("folder_path"):
+                continue
+
+            folder_configs[section_name] = FolderConfig(
+                name=section_name,
+                folder_path=Path(section.get("folder_path", "")),
+                enabled=enabled,
+                system_prompt=section.get("system_prompt", ""),
+                user_prompt_template=section.get("user_prompt_template", ""),
+                provider=section.get("provider", "openrouter"),
+                model=section.get("model", "google/gemini-2.5-flash-lite"),
+                temperature=float(section.get("temperature", "0.7")),
+                max_tokens=int(section.get("max_tokens", "2048")),
+                output_format=section.get("output_format", "markdown"),
+                output_directory=Path(section["output_directory"])
+                if section.get("output_directory")
+                else None,
+                prompt_files=PromptFileConfig(
+                    system_prompt_file=Path(section["system_prompt_file"])
+                    if section.get("system_prompt_file")
                     else None,
-                    prompt_files=PromptFileConfig(
-                        system_prompt_file=Path(section["system_prompt_file"])
-                        if section.get("system_prompt_file")
-                        else None,
-                        user_prompt_file=Path(section["user_prompt_file"])
-                        if section.get("user_prompt_file")
-                        else None,
-                    ),
-                )
+                    user_prompt_file=Path(section["user_prompt_file"])
+                    if section.get("user_prompt_file")
+                    else None,
+                ),
+                delete_input_files=section.getboolean("delete_input_files", None)
+                if section.get("delete_input_files") is not None
+                else None,
+            )
 
         return folder_configs
 
@@ -360,10 +377,14 @@ class ConfigManager:
 settings: Optional[Settings] = None
 
 
-def get_settings() -> Settings:
-    """Get the global settings instance."""
+def get_settings(force_reload: bool = False) -> Settings:
+    """Get the global settings instance.
+
+    Args:
+        force_reload: If True, reload the config from disk even if cached
+    """
     global settings
-    if settings is None:
+    if settings is None or force_reload:
         config_manager = ConfigManager()
         settings = config_manager.load_config()
     return settings
