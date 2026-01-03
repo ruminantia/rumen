@@ -5,6 +5,7 @@ Main application for Rumen LLM API and file monitoring system.
 import os
 import secrets
 from pathlib import Path
+from typing import Optional
 
 import logging
 import signal
@@ -284,12 +285,12 @@ except Exception as e:
     logger.warning(f"Failed to generate web viewer: {e}")
 
 
-# Cache control middleware to prevent caching of API responses
+# Cache control middleware to prevent caching of API responses and viewer files
 class CacheControlMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         response = await call_next(request)
-        # Add cache-control headers to API responses
-        if request.url.path.startswith('/api/'):
+        # Add cache-control headers to API responses and viewer files
+        if request.url.path.startswith('/api/') or request.url.path.startswith('/viewer/'):
             response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
             response.headers['Pragma'] = 'no-cache'
             response.headers['Expires'] = '0'
@@ -622,8 +623,8 @@ async def get_web_logs():
 
 
 @app.get("/api/web/files/input/{folder_name}")
-async def get_input_files(folder_name: str):
-    """Get input files for a specific folder."""
+async def get_input_files(folder_name: str, date: Optional[str] = None):
+    """Get input files for a specific folder, optionally filtered by date (YYYY/MM/DD)."""
     try:
         if folder_name not in settings.folders:
             return []
@@ -635,25 +636,45 @@ async def get_input_files(folder_name: str):
             return []
 
         files = []
-        for file_path in input_path.rglob("*.md"):
-            if file_path.is_file():
-                stat = file_path.stat()
-                files.append({
-                    "name": file_path.name,
-                    "path": str(file_path),
-                    "size": stat.st_size,
-                    "modified": stat.st_mtime
-                })
 
-        for file_path in input_path.rglob("*.txt"):
-            if file_path.is_file():
-                stat = file_path.stat()
-                files.append({
-                    "name": file_path.name,
-                    "path": str(file_path),
-                    "size": stat.st_size,
-                    "modified": stat.st_mtime
-                })
+        # If date filter is provided, search for that date pattern in all subdirectories
+        search_paths = [input_path]
+        if date:
+            date_parts = date.split("/")
+            if len(date_parts) == 3:
+                # Find all subdirectories matching the date pattern (e.g., */YYYY/MM/DD/)
+                # This handles cases like /app/pastures/{subfolder}/YYYY/MM/DD/
+                from pathlib import Path
+                search_paths = []
+                for subdir in input_path.iterdir():
+                    if subdir.is_dir():
+                        date_path = subdir / date_parts[0] / date_parts[1] / date_parts[2]
+                        if date_path.exists() and date_path.is_dir():
+                            search_paths.append(date_path)
+
+        for search_path in search_paths:
+            if not search_path.exists():
+                continue
+
+            for file_path in search_path.rglob("*.md"):
+                if file_path.is_file():
+                    stat = file_path.stat()
+                    files.append({
+                        "name": file_path.name,
+                        "path": str(file_path),
+                        "size": stat.st_size,
+                        "modified": stat.st_mtime
+                    })
+
+            for file_path in search_path.rglob("*.txt"):
+                if file_path.is_file():
+                    stat = file_path.stat()
+                    files.append({
+                        "name": file_path.name,
+                        "path": str(file_path),
+                        "size": stat.st_size,
+                        "modified": stat.st_mtime
+                    })
 
         return files
     except Exception as e:
@@ -662,8 +683,8 @@ async def get_input_files(folder_name: str):
 
 
 @app.get("/api/web/files/output/{folder_name}")
-async def get_output_files(folder_name: str):
-    """Get output files for a specific folder."""
+async def get_output_files(folder_name: str, date: Optional[str] = None):
+    """Get output files for a specific folder, optionally filtered by date (YYYY/MM/DD)."""
     try:
         output_path = settings.output.output_directory
 
@@ -674,15 +695,23 @@ async def get_output_files(folder_name: str):
 
         if folder_name == "all":
             # Get all output files
-            for file_path in output_path.rglob("*.md"):
-                if file_path.is_file():
-                    stat = file_path.stat()
-                    files.append({
-                        "name": file_path.name,
-                        "path": str(file_path),
-                        "size": stat.st_size,
-                        "modified": stat.st_mtime
-                    })
+            search_path = output_path
+            if date:
+                # Filter by specific date
+                date_parts = date.split("/")
+                if len(date_parts) == 3:
+                    search_path = output_path / date_parts[0] / date_parts[1] / date_parts[2]
+
+            if search_path.exists():
+                for file_path in search_path.rglob("*.md"):
+                    if file_path.is_file():
+                        stat = file_path.stat()
+                        files.append({
+                            "name": file_path.name,
+                            "path": str(file_path),
+                            "size": stat.st_size,
+                            "modified": stat.st_mtime
+                        })
         else:
             # Get files for specific folder (if it has a custom output directory)
             if folder_name in settings.folders:
@@ -690,7 +719,13 @@ async def get_output_files(folder_name: str):
                 if folder_config.output_directory:
                     folder_output = folder_config.output_directory
                 else:
-                    folder_output = output_path / folder_name
+                    folder_output = output_path
+
+                # Apply date filter if provided
+                if date:
+                    date_parts = date.split("/")
+                    if len(date_parts) == 3:
+                        folder_output = folder_output / date_parts[0] / date_parts[1] / date_parts[2]
 
                 if folder_output.exists():
                     for file_path in folder_output.rglob("*.md"):
@@ -817,6 +852,58 @@ async def save_web_prompt(request: dict):
         return {"success": True, "message": "Prompt saved and application reloaded"}
     except Exception as e:
         logger.error(f"Error saving prompt: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/web/dates")
+async def get_web_dates():
+    """Get all dates that have processed content (no auth required for web UI)."""
+    try:
+        dates = set()
+
+        # Scan all enabled folders' output directories for date-based subdirectories
+        for folder_config in settings.folders.values():
+            if not folder_config.enabled:
+                continue
+
+            # Get the output directory for this folder
+            if folder_config.output_directory:
+                output_base = folder_config.output_directory
+            else:
+                output_base = settings.output.output_directory
+
+            if not output_base.exists():
+                continue
+
+            # Scan for YYYY/MM/DD subdirectories
+            for year_dir in output_base.iterdir():
+                if not year_dir.is_dir() or not year_dir.name.isdigit():
+                    continue
+
+                for month_dir in year_dir.iterdir():
+                    if not month_dir.is_dir() or not month_dir.name.isdigit():
+                        continue
+
+                    for day_dir in month_dir.iterdir():
+                        if not day_dir.is_dir() or not day_dir.name.isdigit():
+                            continue
+
+                        # Check if this day directory has any markdown or json files
+                        has_content = any(
+                            f.suffix in ['.md', '.json'] and f.is_file()
+                            for f in day_dir.iterdir()
+                        )
+
+                        if has_content:
+                            date_str = f"{year_dir.name}/{month_dir.name}/{day_dir.name}"
+                            dates.add(date_str)
+
+        # Sort dates descending (newest first)
+        sorted_dates = sorted(list(dates), reverse=True)
+
+        return {"success": True, "dates": sorted_dates}
+    except Exception as e:
+        logger.error(f"Error getting dates: {e}")
         return {"success": False, "error": str(e)}
 
 

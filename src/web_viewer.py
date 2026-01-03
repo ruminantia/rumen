@@ -36,7 +36,10 @@ def create_web_viewer(viewer_dir: str = "/app/viewer") -> None:
 
 def create_index_html(viewer_dir: str) -> None:
     """Create index.html file."""
-    html_content = """<!DOCTYPE html>
+    # Generate timestamp for cache-busting
+    version = int(datetime.now().timestamp())
+
+    html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -49,10 +52,22 @@ def create_index_html(viewer_dir: str) -> None:
         <header>
             <h1>🐄 Rumen</h1>
             <div class="header-controls">
+                <button id="calendar-toggle" aria-label="Toggle calendar">📅</button>
                 <button id="settings-toggle" aria-label="Settings">⚙️</button>
                 <button id="theme-toggle" aria-label="Toggle theme">◐</button>
             </div>
         </header>
+
+        <div id="calendar-overlay" class="calendar-overlay">
+            <div class="calendar-container">
+                <div class="calendar-header">
+                    <button id="prev-month">&lt;</button>
+                    <h2 id="current-month"></h2>
+                    <button id="next-month">&gt;</button>
+                </div>
+                <div id="calendar"></div>
+            </div>
+        </div>
 
         <!-- Navigation Tabs -->
         <nav class="nav-tabs">
@@ -211,7 +226,7 @@ def create_index_html(viewer_dir: str) -> None:
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
-    <script src="assets/app.js"></script>
+    <script src="assets/app.js?v={version}"></script>
 </body>
 </html>
 """
@@ -230,8 +245,8 @@ def create_stylesheet(assets_dir: str) -> None:
     logger = logging.getLogger(__name__)
     
     css_content = """/* Rumen Viewer - Minimalist CSS */
-:root { --bg-primary: #fff; --bg-secondary: #f6f6f6; --bg-hover: #e8e8e8; --text-primary: #000; --text-secondary: #666; --border: #ccc; --accent: #f60; --success: #4caf50; --error: #f44336; }
-[data-theme="dark"] { --bg-primary: #1a1a1a; --bg-secondary: #2a2a2a; --bg-hover: #3a3a3a; --text-primary: #e0e0e0; --text-secondary: #a0a0a0; --border: #444; }
+:root { --bg-primary: #fff; --bg-secondary: #f6f6f6; --bg-hover: #e8e8e8; --text-primary: #000; --text-secondary: #666; --border: #ccc; --accent: #f60; --success: #4caf50; --error: #f44336; --calendar-today: #ffffcc; --calendar-has-content: #e6f3ff; }
+[data-theme="dark"] { --bg-primary: #1a1a1a; --bg-secondary: #2a2a2a; --bg-hover: #3a3a3a; --text-primary: #e0e0e0; --text-secondary: #a0a0a0; --border: #444; --calendar-today: #3a3a00; --calendar-has-content: #1a2a3a; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: Verdana, Geneva, sans-serif; font-size: 14px; line-height: 1.6; background: var(--bg-primary); color: var(--text-primary); overflow-x: hidden; }
 .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
@@ -255,6 +270,23 @@ header h1 { font-size: 24px; color: var(--accent); }
 .save-status { font-size: 14px; }
 .save-status.success { color: var(--success); }
 .save-status.error { color: var(--error); }
+
+/* Calendar Overlay */
+.calendar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 1000; justify-content: center; align-items: center; }
+.calendar-overlay.active { display: flex; }
+.calendar-container { background: var(--bg-secondary); padding: 20px; border-radius: 8px; max-width: 500px; width: 90%; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
+.calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.calendar-header button { background: var(--bg-primary); border: 1px solid var(--border); padding: 5px 15px; cursor: pointer; border-radius: 3px; font-size: 16px; transition: background 0.2s; }
+.calendar-header button:hover { background: var(--bg-hover); }
+.calendar-header h2 { font-size: 18px; margin: 0; }
+#calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; width: 100%; }
+.calendar-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 3px; cursor: pointer; transition: background 0.2s; font-size: 12px; min-height: 40px; }
+.calendar-day.header { font-weight: bold; cursor: default; background: var(--bg-secondary); }
+.calendar-day.empty { cursor: default; opacity: 0.3; }
+.calendar-day.today { background: var(--calendar-today); font-weight: bold; }
+.calendar-day.has-content { background: var(--calendar-has-content); font-weight: bold; }
+.calendar-day.selected { background: var(--accent); color: white; }
+.calendar-day:not(.header):not(.empty):hover { background: var(--bg-hover); }
 
 .nav-tabs { display: flex; gap: 5px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
 .nav-tab { background: var(--bg-secondary); border: 1px solid var(--border); padding: 10px 20px; cursor: pointer; }
@@ -459,12 +491,30 @@ def create_javascript(assets_dir: str) -> None:
     logger = logging.getLogger(__name__)
     
     js_content = """// Rumen Viewer App
-const state = { currentTab: 'dashboard' };
+const state = {
+    currentTab: 'dashboard',
+    currentMonth: new Date(),
+    currentDate: null,  // Will be set to today's date during initialization
+    datesWithContent: new Set()
+};
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Set current date to today by default
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    state.currentDate = `${year}/${month}/${day}`;
+
     setupTabs();
     setupEventListeners();
     initializeTheme();
+    await loadDatesWithContent();
+
+    // Mark today as selected in calendar
+    renderCalendar();
+
+    // Load dashboard with today's date
     await loadDashboard();
 });
 
@@ -520,6 +570,41 @@ function setupEventListeners() {
         document.documentElement.setAttribute('data-theme', next);
         localStorage.setItem('rumen-theme', next);
     });
+
+    // Calendar overlay toggle
+    const calendarOverlay = document.getElementById('calendar-overlay');
+    const calendarToggle = document.getElementById('calendar-toggle');
+
+    calendarToggle.addEventListener('click', () => {
+        calendarOverlay.classList.toggle('active');
+        renderCalendar();
+    });
+
+    // Close calendar when clicking outside
+    calendarOverlay.addEventListener('click', (e) => {
+        if (e.target === calendarOverlay) {
+            calendarOverlay.classList.remove('active');
+        }
+    });
+
+    // Month navigation
+    document.getElementById('prev-month').addEventListener('click', () => {
+        state.currentMonth.setMonth(state.currentMonth.getMonth() - 1);
+        renderCalendar();
+    });
+
+    document.getElementById('next-month').addEventListener('click', () => {
+        state.currentMonth.setMonth(state.currentMonth.getMonth() + 1);
+        renderCalendar();
+    });
+
+    // Close calendar when a date is selected
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('calendar-day') && e.target.classList.contains('has-content')) {
+            calendarOverlay.classList.remove('active');
+        }
+    });
+
 
     document.getElementById('save-config').addEventListener('click', saveConfig);
 
@@ -754,9 +839,12 @@ async function loadRoutineFiles(routineName) {
     viewer.innerHTML = '<div class="loading">Loading files...</div>';
 
     try {
+        // Build URL with date filter if selected
+        const dateParam = state.currentDate ? `?date=${encodeURIComponent(state.currentDate)}` : '';
+
         const [inputRes, outputRes] = await Promise.all([
-            fetch(`/api/web/files/input/${encodeURIComponent(routineName)}`),
-            fetch(`/api/web/files/output/${encodeURIComponent(routineName)}`)
+            fetch(`/api/web/files/input/${encodeURIComponent(routineName)}${dateParam}`),
+            fetch(`/api/web/files/output/${encodeURIComponent(routineName)}${dateParam}`)
         ]);
 
         const inputFiles = await inputRes.json();
@@ -770,11 +858,13 @@ async function loadRoutineFiles(routineName) {
 
         renderRoutineFileList();
 
-        // Show welcome message
+        // Show welcome message with date info
+        const dateInfo = state.currentDate ? `<p>Showing results for <strong>${state.currentDate}</strong></p>` : '';
         viewer.innerHTML = `
             <div class="welcome">
                 <h2>Select a file</h2>
                 <p>Choose a file from the sidebar to view its contents.</p>
+                ${dateInfo}
                 <p><strong>Found ${routineFilePairs.length} file pairs</strong></p>
             </div>
         `;
@@ -974,6 +1064,113 @@ function formatFileSize(bytes) {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// Calendar functions
+function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}/${month}/${day}`;
+}
+
+async function loadDatesWithContent() {
+    try {
+        const res = await fetch('/api/web/dates');
+        const data = await res.json();
+        if (data.success && data.dates) {
+            state.datesWithContent = new Set(data.dates);
+        }
+    } catch (error) {
+        console.error('Failed to load dates:', error);
+    }
+}
+
+function renderCalendar() {
+    const calendar = document.getElementById('calendar');
+    const monthHeader = document.getElementById('current-month');
+
+    const year = state.currentMonth.getFullYear();
+    const month = state.currentMonth.getMonth();
+
+    monthHeader.textContent = state.currentMonth.toLocaleDateString('en-US', {
+        month: 'long',
+        year: 'numeric'
+    });
+
+    calendar.innerHTML = '';
+
+    // Day headers
+    ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
+        const header = document.createElement('div');
+        header.className = 'calendar-day header';
+        header.textContent = day;
+        calendar.appendChild(header);
+    });
+
+    // Get first day of month and days in month
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    // Empty cells before first day
+    for (let i = 0; i < firstDay; i++) {
+        const empty = document.createElement('div');
+        empty.className = 'calendar-day empty';
+        calendar.appendChild(empty);
+    }
+
+    // Days of month
+    const today = new Date();
+    const todayStr = formatDate(today);
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month, day);
+        const dateStr = formatDate(date);
+
+        const dayCell = document.createElement('div');
+        dayCell.className = 'calendar-day';
+        dayCell.textContent = day;
+        dayCell.dataset.date = dateStr;
+
+        if (dateStr === todayStr) {
+            dayCell.classList.add('today');
+        }
+
+        if (state.datesWithContent.has(dateStr)) {
+            dayCell.classList.add('has-content');
+            dayCell.addEventListener('click', () => selectDate(dateStr));
+        } else {
+            dayCell.classList.add('empty');
+        }
+
+        if (dateStr === state.currentDate) {
+            dayCell.classList.add('selected');
+        }
+
+        calendar.appendChild(dayCell);
+    }
+}
+
+async function selectDate(date) {
+    state.currentDate = date;
+
+    // Update calendar
+    document.querySelectorAll('.calendar-day').forEach(cell => {
+        cell.classList.remove('selected');
+        if (cell.dataset.date === date) {
+            cell.classList.add('selected');
+        }
+    });
+
+    // Reload data with date filter
+    if (state.currentTab === 'dashboard') {
+        await loadDashboard();
+    } else if (state.currentTab === 'routines') {
+        const routine = document.getElementById('routine-select').value;
+        if (routine) {
+            await loadRoutineFiles(routine);
+        }
+    }
 }
 
 // Prompts management

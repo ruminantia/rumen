@@ -424,7 +424,7 @@ class FileMonitor:
             # Save the result
             output_handler.save_result(
                 content=processed_content,
-                original_filename=str(file_path),
+                original_filename=file_path.name,
                 folder_name=folder_config.name,
                 output_format=folder_config.output_format,
                 metadata={
@@ -434,6 +434,7 @@ class FileMonitor:
                     "provider": folder_config.provider,
                 },
                 folder_config=folder_config,
+                original_filepath=str(file_path),
             )
 
             # Clean up the processed file if configured to do so

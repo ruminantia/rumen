@@ -22,18 +22,48 @@ class OutputHandler:
         self._ensure_output_directory()
 
     def _get_output_directory(
-        self, folder_config: Optional[FolderConfig] = None
+        self, folder_config: Optional[FolderConfig] = None, original_filepath: Optional[str] = None
     ) -> Path:
-        """Get the appropriate output directory for a folder configuration."""
+        """Get the appropriate output directory for a folder configuration with date-based subdirectories."""
+        base_dir = None
         if folder_config and folder_config.output_directory:
-            return folder_config.output_directory
-        return self.settings.output_directory
+            base_dir = folder_config.output_directory
+        else:
+            base_dir = self.settings.output_directory
 
-    def _ensure_output_directory_for_folder(
-        self, folder_config: Optional[FolderConfig] = None
-    ):
-        """Ensure the output directory exists for a specific folder configuration."""
-        output_dir = self._get_output_directory(folder_config)
+        # Extract date from original filepath if available (format: .../YYYY/MM/DD/file.md)
+        date_path = self._extract_date_path(original_filepath)
+
+        # Append date-based subdirectory
+        if date_path:
+            return base_dir / date_path
+        else:
+            # Use current date if no date in input path
+            now = datetime.now()
+            date_dir = now.strftime("%Y/%m/%d")
+            return base_dir / date_dir
+
+    def _extract_date_path(self, filepath: Optional[str]) -> Optional[str]:
+        """Extract date path (YYYY/MM/DD) from a file path if present."""
+        if not filepath:
+            return None
+
+        path = Path(filepath)
+        parts = path.parts
+
+        # Look for date pattern in path parts: YYYY/MM/DD
+        for i in range(len(parts) - 2):
+            if (
+                parts[i].isdigit() and len(parts[i]) == 4 and  # Year
+                parts[i + 1].isdigit() and len(parts[i + 1]) == 2 and  # Month
+                parts[i + 2].isdigit() and len(parts[i + 2]) == 2  # Day
+            ):
+                return f"{parts[i]}/{parts[i+1]}/{parts[i+2]}"
+
+        return None
+
+    def _ensure_output_directory_for_folder(self, output_dir: Path):
+        """Ensure the output directory exists."""
         try:
             output_dir.mkdir(parents=True, exist_ok=True)
             logger.debug(f"Ensured output directory exists: {output_dir}")
@@ -62,6 +92,7 @@ class OutputHandler:
         output_format: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         folder_config: Optional[FolderConfig] = None,
+        original_filepath: Optional[str] = None,
     ) -> Path:
         """
         Save processed result to a file.
@@ -73,6 +104,7 @@ class OutputHandler:
             output_format: Output format (markdown, json)
             metadata: Additional metadata to include
             folder_config: Folder configuration for custom output directory
+            original_filepath: Full path to original file (for date extraction)
 
         Returns:
             Path to the saved file
@@ -87,9 +119,9 @@ class OutputHandler:
             output_format=output_format,
         )
 
-        # Use folder-specific output directory if available
-        output_dir = self._get_output_directory(folder_config)
-        self._ensure_output_directory_for_folder(folder_config)
+        # Get output directory with date-based subdirectory
+        output_dir = self._get_output_directory(folder_config, original_filepath)
+        self._ensure_output_directory_for_folder(output_dir)
         file_path = output_dir / filename
 
         try:
@@ -206,6 +238,7 @@ class OutputHandler:
         folder_name: Optional[str] = None,
         error_details: Optional[Dict[str, Any]] = None,
         folder_config: Optional[FolderConfig] = None,
+        original_filepath: Optional[str] = None,
     ) -> Path:
         """
         Save error information to a file.
@@ -216,6 +249,7 @@ class OutputHandler:
             folder_name: Name of the folder that triggered processing
             error_details: Additional error details
             folder_config: Folder configuration for custom output directory
+            original_filepath: Full path to original file (for date extraction)
 
         Returns:
             Path to the saved error file
@@ -235,9 +269,9 @@ class OutputHandler:
         base_name = "_".join(components)
         filename = f"{base_name}.json"
 
-        # Use folder-specific output directory if available
-        output_dir = self._get_output_directory(folder_config)
-        self._ensure_output_directory_for_folder(folder_config)
+        # Get output directory with date-based subdirectory
+        output_dir = self._get_output_directory(folder_config, original_filepath)
+        self._ensure_output_directory_for_folder(output_dir)
         file_path = output_dir / filename
 
         error_data = {
