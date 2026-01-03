@@ -275,19 +275,19 @@ class FileMonitor:
             logger.warning("No folders to monitor")
 
     def _start_folder_monitoring(self, folder_name: str, folder_config: FolderConfig):
-        """Start monitoring a specific folder."""
-        folder_path = folder_config.folder_path
+        """Start monitoring a specific routine."""
+        input_path = folder_config.input_directory
 
-        # Create folder if it doesn't exist
+        # Create input directory if it doesn't exist
         try:
-            folder_path.mkdir(parents=True, exist_ok=True)
-            logger.debug(f"Ensured folder exists: {folder_path}")
+            input_path.mkdir(parents=True, exist_ok=True)
+            logger.debug(f"Ensured input directory exists: {input_path}")
         except Exception as e:
-            logger.error(f"Could not create folder {folder_path}: {e}")
+            logger.error(f"Could not create input directory {input_path}: {e}")
             return
 
-        if not folder_path.exists() or not folder_path.is_dir():
-            logger.error(f"Folder path is not a directory: {folder_path}")
+        if not input_path.exists() or not input_path.is_dir():
+            logger.error(f"Input path is not a directory: {input_path}")
             return
 
         # Create event handler
@@ -298,12 +298,12 @@ class FileMonitor:
         try:
             self.observer.schedule(
                 event_handler,
-                str(folder_path),
+                str(input_path),
                 recursive=True,  # Watch subdirectories recursively
             )
-            logger.info(f"Started monitoring folder: {folder_path}")
+            logger.info(f"Started monitoring routine: {input_path}")
         except Exception as e:
-            logger.error(f"Failed to start monitoring folder {folder_path}: {e}")
+            logger.error(f"Failed to start monitoring routine {input_path}: {e}")
 
     def stop(self):
         """Stop the file monitor."""
@@ -324,26 +324,56 @@ class FileMonitor:
 
         for folder_name, event_handler in self.event_handlers.items():
             folder_config = self.settings.folders[folder_name]
-            folder_path = folder_config.folder_path
+            input_path = folder_config.input_directory
 
-            logger.info(f"Processing existing files in: {folder_path}")
+            logger.info(f"Processing existing files in: {input_path}")
 
             try:
-                # Process all markdown files recursively
-                for file_path in folder_path.rglob("*.md"):
-                    if self.file_processor.should_process_file(file_path):
-                        self._process_file_sync(file_path, folder_config)
+                # Collect all files to process (only unprocessed ones)
+                files_to_process = []
+                skipped_processed = 0
 
-                for file_path in folder_path.rglob("*.markdown"):
+                for file_path in input_path.rglob("*.md"):
                     if self.file_processor.should_process_file(file_path):
-                        self._process_file_sync(file_path, folder_config)
+                        # Check if already marked as processed
+                        if not self.file_processor._is_file_processed(file_path):
+                            files_to_process.append(file_path)
+                        else:
+                            skipped_processed += 1
 
-                for file_path in folder_path.rglob("*.txt"):
+                for file_path in input_path.rglob("*.markdown"):
                     if self.file_processor.should_process_file(file_path):
-                        self._process_file_sync(file_path, folder_config)
+                        if not self.file_processor._is_file_processed(file_path):
+                            files_to_process.append(file_path)
+                        else:
+                            skipped_processed += 1
+
+                for file_path in input_path.rglob("*.txt"):
+                    if self.file_processor.should_process_file(file_path):
+                        if not self.file_processor._is_file_processed(file_path):
+                            files_to_process.append(file_path)
+                        else:
+                            skipped_processed += 1
+
+                logger.info(f"Found {len(files_to_process)} unprocessed files to process (skipped {skipped_processed} already processed)")
+
+                if not files_to_process:
+                    logger.info("No unprocessed files found")
+                    return
+
+                # Process files with delay to avoid rate limits
+                import time as time_module
+                for i, file_path in enumerate(files_to_process, 1):
+                    logger.info(f"Processing file {i}/{len(files_to_process)}: {file_path.name}")
+                    self._process_file_sync(file_path, folder_config)
+
+                    # Add delay between files to avoid rate limits (10 seconds for free models)
+                    if i < len(files_to_process):
+                        logger.debug("Waiting 10 seconds to avoid rate limits...")
+                        time_module.sleep(10)
 
             except Exception as e:
-                logger.error(f"Error processing existing files in {folder_path}: {e}")
+                logger.error(f"Error processing existing files in {input_path}: {e}")
 
     def _process_file_sync(self, file_path: Path, folder_config: FolderConfig):
         """Process a file synchronously for existing files at startup."""
@@ -357,10 +387,35 @@ class FileMonitor:
                 return
 
             # Import here to avoid circular imports
-            from .main import llm_client, output_handler
+            from .main import output_handler
+            from .config import LLMSettings
+            from .llm_client import LLMClient
+
+            # Create folder-specific LLM settings
+            folder_llm_settings = LLMSettings(
+                provider=folder_config.provider,
+                model=folder_config.model,
+                base_url=self.settings.llm.base_url,  # Will be overridden
+                api_key=self.settings.llm.api_key,
+                temperature=folder_config.temperature,
+                max_tokens=folder_config.max_tokens,
+                top_p=self.settings.llm.top_p,
+                retry_attempts=self.settings.llm.retry_attempts,
+                retry_delay=self.settings.llm.retry_delay,
+            )
+
+            # Get provider-specific base_url
+            provider_name = folder_config.provider
+            if provider_name in self.settings.provider_base_urls:
+                folder_llm_settings.base_url = self.settings.provider_base_urls[provider_name]
+
+            # Create folder-specific LLM client
+            folder_llm_client = LLMClient(folder_llm_settings)
+
+            logger.info(f"Using provider: {folder_config.provider}, model: {folder_config.model}")
 
             # Process content with LLM
-            processed_content = llm_client.process_content(
+            processed_content = folder_llm_client.process_content(
                 content=content,
                 system_prompt=folder_config.load_system_prompt(),
                 user_prompt_template=folder_config.load_user_prompt_template(),

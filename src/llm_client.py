@@ -1,5 +1,5 @@
 """
-LLM client for interacting with various providers (OpenRouter, OpenAI, Gemini, DeepSeek).
+LLM client for interacting with various providers (OpenRouter, OpenAI, Gemini, DeepSeek, ZAI/GLM).
 """
 
 import os
@@ -22,10 +22,11 @@ class LLMClient:
 
     def _initialize_client(self) -> OpenAI:
         """Initialize the OpenAI client with provider-specific configuration."""
-        # Basic client initialization
+        # Basic client initialization with retries disabled (we handle retries ourselves)
         client = OpenAI(
             api_key=self.settings.api_key,
             base_url=self.settings.base_url,
+            max_retries=0,  # Disable built-in retries, we handle them ourselves
         )
 
         return client
@@ -87,8 +88,29 @@ class LLMClient:
                         raise ValueError("No content in response")
 
                 except Exception as e:
-                    logger.warning(f"Attempt {attempt + 1} failed: {str(e)}")
-                    if attempt < max_retries - 1:
+                    error_str = str(e)
+                    logger.warning(f"Attempt {attempt + 1} failed: {error_str}")
+
+                    # Check if it's a rate limit error (429)
+                    if "429" in error_str and attempt < max_retries - 1:
+                        # Try to extract rate limit reset time from error
+                        import re
+                        import time as time_module
+
+                        reset_match = re.search(r"'X-RateLimit-Reset':\s*'(\d+)'", error_str)
+                        if reset_match:
+                            reset_timestamp = int(reset_match.group(1))
+                            current_time = time_module.time() * 1000  # Convert to milliseconds
+                            wait_seconds = max(1, (reset_timestamp - current_time) / 1000)
+                            logger.info(f"Rate limited. Waiting {wait_seconds:.1f} seconds until reset")
+                            time.sleep(wait_seconds)
+                        else:
+                            # Fallback to exponential backoff if we can't parse reset time
+                            backoff = self.settings.retry_delay * (2 ** attempt)
+                            logger.info(f"Using exponential backoff: waiting {backoff} seconds")
+                            time.sleep(backoff)
+                    elif attempt < max_retries - 1:
+                        # Non-rate-limit errors: use standard retry delay
                         time.sleep(self.settings.retry_delay)
                     else:
                         raise

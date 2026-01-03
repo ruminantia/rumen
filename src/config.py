@@ -37,7 +37,7 @@ class LLMSettings(BaseModel):
 
     provider: str = Field(
         default="openrouter",
-        description="LLM provider (openrouter, openai, gemini, deepseek)",
+        description="LLM provider (openrouter, openai, gemini, deepseek, zai)",
     )
     model: str = Field(default="google/gemini-2.5-flash-lite", description="Model name")
     base_url: str = Field(
@@ -72,28 +72,28 @@ class LLMSettings(BaseModel):
 
 
 class FolderConfig(BaseModel):
-    """Configuration for a monitored folder."""
+    """Configuration for a monitored routine."""
 
-    name: str = Field(description="Folder configuration name")
-    folder_path: Path = Field(description="Path to monitor for files")
-    enabled: bool = Field(default=False, description="Whether this folder is monitored")
-    system_prompt: str = Field(description="System prompt for this folder")
+    name: str = Field(description="Routine configuration name")
+    input_directory: Path = Field(description="Input directory to monitor for files")
+    enabled: bool = Field(default=False, description="Whether this routine is monitored")
+    system_prompt: str = Field(description="System prompt for this routine")
     user_prompt_template: str = Field(
         description="User prompt template with {content} placeholder"
     )
     provider: str = Field(
-        default="openrouter", description="LLM provider for this folder"
+        default="openrouter", description="LLM provider for this routine"
     )
     model: str = Field(
-        default="google/gemini-2.5-flash-lite", description="Model for this folder"
+        default="google/gemini-2.5-flash-lite", description="Model for this routine"
     )
-    temperature: float = Field(default=0.7, description="Temperature for this folder")
-    max_tokens: int = Field(default=2048, description="Max tokens for this folder")
+    temperature: float = Field(default=0.7, description="Temperature for this routine")
+    max_tokens: int = Field(default=2048, description="Max tokens for this routine")
     output_format: str = Field(
         default="markdown", description="Output format (markdown, json)"
     )
     output_directory: Optional[Path] = Field(
-        default=None, description="Custom output directory for this folder (optional)"
+        default=None, description="Custom output directory for this routine (optional)"
     )
     prompt_files: PromptFileConfig = Field(
         default_factory=PromptFileConfig, description="Prompt file configuration"
@@ -103,9 +103,9 @@ class FolderConfig(BaseModel):
         description="Whether to delete input files after processing (None = use global setting)",
     )
 
-    @validator("folder_path")
-    def validate_folder_path(cls, v):
-        """Ensure folder path is absolute."""
+    @validator("input_directory")
+    def validate_input_directory(cls, v):
+        """Ensure input directory path is absolute."""
         if not v.is_absolute():
             return Path("/app") / v
         return v
@@ -175,6 +175,10 @@ class FileMonitorSettings(BaseModel):
         default=True,
         description="Whether to delete input files after successful processing",
     )
+    process_existing_on_startup: bool = Field(
+        default=True,
+        description="Process unprocessed existing files when monitor starts",
+    )
 
 
 class OutputSettings(BaseModel):
@@ -211,6 +215,9 @@ class Settings(BaseModel):
     # Folder configurations
     folders: Dict[str, FolderConfig] = Field(default_factory=dict)
 
+    # Provider-specific base URLs
+    provider_base_urls: Dict[str, str] = Field(default_factory=dict)
+
 
 class ConfigManager:
     """Manages configuration loading from config.ini file."""
@@ -241,12 +248,16 @@ class ConfigManager:
         # Load folder configurations
         folder_configs = self._load_folder_configs()
 
+        # Load provider base URLs
+        provider_base_urls = self._load_provider_base_urls()
+
         return Settings(
             llm=llm_settings,
             api=api_settings,
             file_monitor=file_monitor_settings,
             output=output_settings,
             folders=folder_configs,
+            provider_base_urls=provider_base_urls,
         )
 
     def _load_llm_settings(self) -> LLMSettings:
@@ -264,7 +275,7 @@ class ConfigManager:
         return LLMSettings(
             provider=provider,
             model=default_section.get("model", "google/gemini-2.5-flash-lite"),
-            base_url=default_section.get("base_url", "https://openrouter.ai/api/v1"),
+            base_url=default_section.get("base_url") or provider_section.get("base_url", "https://openrouter.ai/api/v1"),
             api_key=api_key,
             temperature=float(default_section.get("temperature", "0.7")),
             max_tokens=int(default_section.get("max_tokens", "2048")),
@@ -284,6 +295,7 @@ class ConfigManager:
             "openai": "OPENAI_API_KEY",
             "gemini": "GEMINI_API_KEY",
             "deepseek": "DEEPSEEK_API_KEY",
+            "zai": "ZAI_API_KEY",
         }
 
         env_var = env_var_map.get(provider, "OPENROUTER_API_KEY")
@@ -331,7 +343,7 @@ class ConfigManager:
 
         for section_name in self.parser.sections():
             # Skip provider-specific sections
-            if section_name in ["openrouter", "openai", "gemini", "deepseek"]:
+            if section_name in ["openrouter", "openai", "gemini", "deepseek", "zai"]:
                 continue
 
             section = self.parser[section_name]
@@ -339,13 +351,13 @@ class ConfigManager:
             # Load all folder configurations, both enabled and disabled
             enabled = section.getboolean("enabled", False)
 
-            # Skip sections without folder_path (not folder configs)
-            if not section.get("folder_path"):
+            # Skip sections without input_directory (not routine configs)
+            if not section.get("input_directory"):
                 continue
 
             folder_configs[section_name] = FolderConfig(
                 name=section_name,
-                folder_path=Path(section.get("folder_path", "")),
+                input_directory=Path(section.get("input_directory", "")),
                 enabled=enabled,
                 system_prompt=section.get("system_prompt", ""),
                 user_prompt_template=section.get("user_prompt_template", ""),
@@ -371,6 +383,20 @@ class ConfigManager:
             )
 
         return folder_configs
+
+    def _load_provider_base_urls(self) -> Dict[str, str]:
+        """Load provider-specific base URLs from config."""
+        provider_base_urls = {}
+
+        for section_name in self.parser.sections():
+            # Only process provider-specific sections
+            if section_name in ["openrouter", "openai", "gemini", "deepseek", "zai"]:
+                section = self.parser[section_name]
+                base_url = section.get("base_url")
+                if base_url:
+                    provider_base_urls[section_name] = base_url
+
+        return provider_base_urls
 
 
 # Global settings instance
