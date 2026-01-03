@@ -19,7 +19,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.middleware.base import BaseHTTPMiddleware
 import uvicorn
 
-from .config import get_settings, Settings
+from .config import get_settings, Settings, LLMSettings
 from .llm_client import LLMClientFactory, LLMClient
 from .file_monitor import FileMonitor
 from .output_handler import OutputHandler
@@ -159,8 +159,31 @@ async def process_file_content(content: str, file_path: str, folder_config) -> b
             f"Processing content from {file_path} for folder {folder_config.name}"
         )
 
+        # Create folder-specific LLM settings
+        folder_llm_settings = LLMSettings(
+            provider=folder_config.provider,
+            model=folder_config.model,
+            base_url=settings.llm.base_url,  # Will be overridden by provider-specific config
+            api_key=settings.llm.api_key,
+            temperature=folder_config.temperature,
+            max_tokens=folder_config.max_tokens,
+            top_p=settings.llm.top_p,
+            retry_attempts=settings.llm.retry_attempts,
+            retry_delay=settings.llm.retry_delay,
+        )
+
+        # Get provider-specific base_url
+        provider_name = folder_config.provider
+        if provider_name in settings.provider_base_urls:
+            folder_llm_settings.base_url = settings.provider_base_urls[provider_name]
+
+        # Create folder-specific LLM client
+        folder_llm_client = LLMClient(folder_llm_settings)
+
+        logger.info(f"Using provider: {folder_config.provider}, model: {folder_config.model}")
+
         # Process content with LLM
-        processed_content = llm_client.process_content(
+        processed_content = folder_llm_client.process_content(
             content=content,
             system_prompt=folder_config.system_prompt,
             user_prompt_template=folder_config.user_prompt_template,
@@ -173,7 +196,7 @@ async def process_file_content(content: str, file_path: str, folder_config) -> b
             folder_name=folder_config.name,
             output_format=folder_config.output_format,
             metadata={
-                "original_file": file_path,
+                "original_file": str(file_path),
                 "folder": folder_config.name,
                 "model": folder_config.model,
                 "provider": folder_config.provider,
@@ -190,11 +213,11 @@ async def process_file_content(content: str, file_path: str, folder_config) -> b
         # Save error result
         output_handler.save_error_result(
             error_message=str(e),
-            original_filename=file_path,
+            original_filename=str(file_path),
             folder_name=folder_config.name,
             error_details={
                 "folder_config": folder_config.name,
-                "file_path": file_path,
+                "file_path": str(file_path),
             },
             folder_config=folder_config,
         )
@@ -213,8 +236,7 @@ async def lifespan(app: FastAPI):
     # Start file monitoring in background
     if file_monitor:
         file_monitor.start()
-        # Process any existing files
-        file_monitor.process_existing_files()
+
         # Start the monitoring loop in a background thread
         import threading
 
@@ -222,6 +244,16 @@ async def lifespan(app: FastAPI):
             target=file_monitor.run_monitoring_loop, daemon=True
         )
         monitoring_thread.start()
+
+        # Process existing files in background if enabled
+        if settings.file_monitor.process_existing_on_startup:
+            processing_thread = threading.Thread(
+                target=file_monitor.process_existing_files, daemon=True
+            )
+            processing_thread.start()
+            logger.info("File processing started in background")
+        else:
+            logger.info("Processing existing files on startup is disabled")
 
     yield
 
@@ -381,7 +413,7 @@ async def list_monitored_folders(_: str = Depends(verify_api_key)):
         folder_info = {
             "name": folder_name,
             "enabled": folder_config.enabled,
-            "folder_path": str(folder_config.folder_path),
+            "input_directory": str(folder_config.input_directory),
             "system_prompt": folder_config.system_prompt[:100] + "..."
             if len(folder_config.system_prompt) > 100
             else folder_config.system_prompt,
@@ -478,11 +510,11 @@ async def get_web_status():
     total_output_files = 0
 
     for folder_config in settings.folders.values():
-        folder_path = folder_config.folder_path
-        if folder_path.exists():
+        input_path = folder_config.input_directory
+        if input_path.exists():
             # Count input files
-            total_input_files += len(list(folder_path.rglob("*.md")))
-            total_input_files += len(list(folder_path.rglob("*.txt")))
+            total_input_files += len(list(input_path.rglob("*.md")))
+            total_input_files += len(list(input_path.rglob("*.txt")))
 
     # Count output files
     output_path = settings.output.output_directory
@@ -502,14 +534,14 @@ async def get_web_folders():
     """Get folder configurations for web viewer (no auth required for web UI)."""
     folders = []
     for name, folder_config in settings.folders.items():
-        folder_path = folder_config.folder_path
+        input_path = folder_config.input_directory
         input_files = 0
-        if folder_path.exists():
-            input_files = len(list(folder_path.rglob("*.md"))) + len(list(folder_path.rglob("*.txt")))
+        if input_path.exists():
+            input_files = len(list(input_path.rglob("*.md"))) + len(list(input_path.rglob("*.txt")))
 
         folders.append({
             "name": name,
-            "path": str(folder_config.folder_path),
+            "path": str(folder_config.input_directory),
             "enabled": folder_config.enabled,
             "provider": folder_config.provider,
             "model": folder_config.model,
@@ -597,13 +629,13 @@ async def get_input_files(folder_name: str):
             return []
 
         folder_config = settings.folders[folder_name]
-        folder_path = folder_config.folder_path
+        input_path = folder_config.input_directory
 
-        if not folder_path.exists():
+        if not input_path.exists():
             return []
 
         files = []
-        for file_path in folder_path.rglob("*.md"):
+        for file_path in input_path.rglob("*.md"):
             if file_path.is_file():
                 stat = file_path.stat()
                 files.append({
@@ -613,7 +645,7 @@ async def get_input_files(folder_name: str):
                     "modified": stat.st_mtime
                 })
 
-        for file_path in folder_path.rglob("*.txt"):
+        for file_path in input_path.rglob("*.txt"):
             if file_path.is_file():
                 stat = file_path.stat()
                 files.append({
@@ -696,6 +728,95 @@ async def get_file_content(path: str):
         return {"success": True, "content": content}
     except Exception as e:
         logger.error(f"Error reading file: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/web/prompts")
+async def get_web_prompts():
+    """Get all prompts from the prompts directory (no auth required for web UI)."""
+    try:
+        prompts_dir = Path("/app/prompts")
+        if not prompts_dir.exists():
+            return {"success": False, "error": "Prompts directory not found"}
+
+        prompts = []
+        for prompt_file in prompts_dir.rglob("*.md"):
+            if prompt_file.is_file() and prompt_file.name != "README.md":
+                # Read first part for preview
+                preview = ""
+                try:
+                    with open(prompt_file, "r", encoding="utf-8") as f:
+                        preview = f.read(200)
+                except:
+                    pass
+
+                prompts.append({
+                    "name": prompt_file.stem,
+                    "path": str(prompt_file.relative_to("/app")),
+                    "preview": preview
+                })
+
+        return {"success": True, "prompts": prompts}
+    except Exception as e:
+        logger.error(f"Error listing prompts: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.get("/api/web/prompt")
+async def get_web_prompt(path: str):
+    """Get content of a specific prompt file (no auth required for web UI)."""
+    try:
+        prompt_path = Path("/app") / path
+
+        # Security check - only allow files from /app/prompts directory
+        if not str(prompt_path).startswith("/app/prompts"):
+            return {"success": False, "error": "Access denied"}
+
+        if not prompt_path.exists():
+            return {"success": False, "error": "Prompt file not found"}
+
+        with open(prompt_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        return {"success": True, "content": content}
+    except Exception as e:
+        logger.error(f"Error reading prompt: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@app.post("/api/web/prompt")
+async def save_web_prompt(request: dict):
+    """Save a prompt file (no auth required for web UI)."""
+    try:
+        path = request.get("path")
+        content = request.get("content")
+
+        if not path or not content:
+            return {"success": False, "error": "Path and content are required"}
+
+        prompt_path = Path("/app") / path
+
+        # Security check - only allow files from /app/prompts directory
+        if not str(prompt_path).startswith("/app/prompts"):
+            return {"success": False, "error": "Access denied"}
+
+        # Create parent directories if they don't exist
+        prompt_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write the prompt content
+        with open(prompt_path, "w", encoding="utf-8") as f:
+            f.write(content)
+
+        logger.info(f"Prompt saved: {prompt_path}")
+
+        # Reload application settings to pick up prompt changes
+        reload_success = reload_application_settings()
+        if not reload_success:
+            logger.warning("Application settings reload failed after prompt save")
+
+        return {"success": True, "message": "Prompt saved and application reloaded"}
+    except Exception as e:
+        logger.error(f"Error saving prompt: {e}")
         return {"success": False, "error": str(e)}
 
 

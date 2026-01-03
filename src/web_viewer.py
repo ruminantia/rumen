@@ -57,8 +57,8 @@ def create_index_html(viewer_dir: str) -> None:
         <!-- Navigation Tabs -->
         <nav class="nav-tabs">
             <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
-            <button class="nav-tab" data-tab="inputs">Input Files</button>
-            <button class="nav-tab" data-tab="outputs">Output Files</button>
+            <button class="nav-tab" data-tab="prompts">Prompts</button>
+            <button class="nav-tab" data-tab="routines">Routines</button>
         </nav>
 
         <!-- Settings Overlay -->
@@ -85,11 +85,11 @@ def create_index_html(viewer_dir: str) -> None:
                 <h2>System Status</h2>
                 <div class="status-grid">
                     <div class="status-card" id="file-monitor-status">
-                        <div class="status-label">File Monitor</div>
+                        <div class="status-label">Monitoring</div>
                         <div class="status-value">Loading...</div>
                     </div>
                     <div class="status-card">
-                        <div class="status-label">Enabled Folders</div>
+                        <div class="status-label">Enabled Routines</div>
                         <div class="status-value" id="enabled-folders-count">-</div>
                     </div>
                     <div class="status-card">
@@ -104,9 +104,9 @@ def create_index_html(viewer_dir: str) -> None:
             </div>
 
             <div class="folders-section">
-                <h2>Configured Folders</h2>
+                <h2>Routines</h2>
                 <div id="folders-grid" class="folders-grid">
-                    <div class="loading">Loading folder configurations...</div>
+                    <div class="loading">Loading routine configurations...</div>
                 </div>
             </div>
 
@@ -124,53 +124,88 @@ def create_index_html(viewer_dir: str) -> None:
             </div>
         </div>
 
-        <!-- Input Files Tab -->
-        <div id="inputs-tab" class="tab-content">
-            <div class="browser-section">
-                <div class="browser-header">
-                    <h2>Input Files</h2>
-                    <div class="browser-controls">
-                        <select id="input-folder-select">
-                            <option value="">Select folder...</option>
-                        </select>
-                        <button id="refresh-inputs" class="btn-secondary">Refresh</button>
+        <!-- Prompts Tab -->
+        <div id="prompts-tab" class="tab-content">
+            <div class="prompts-section">
+                <div class="prompts-header">
+                    <h2>Prompts</h2>
+                    <div class="prompts-controls">
+                        <button id="refresh-prompts" class="btn-secondary">Refresh</button>
                     </div>
                 </div>
-                <div id="input-files-grid" class="files-grid">
-                    <div class="placeholder">Select a folder to view files</div>
+                <div id="prompts-grid" class="prompts-grid">
+                    <div class="loading">Loading prompts...</div>
                 </div>
-            </div>
-            <div id="input-file-content" class="file-content hidden">
-                <div class="file-content-header">
-                    <h3 id="input-file-title">File Content</h3>
-                    <button id="close-input-content" class="btn-secondary">Close</button>
-                </div>
-                <pre id="input-file-text"></pre>
             </div>
         </div>
 
-        <!-- Output Files Tab -->
-        <div id="outputs-tab" class="tab-content">
-            <div class="browser-section">
-                <div class="browser-header">
-                    <h2>Output Files</h2>
-                    <div class="browser-controls">
-                        <select id="output-folder-select">
-                            <option value="">Select folder...</option>
-                        </select>
-                        <button id="refresh-outputs" class="btn-secondary">Refresh</button>
+        <!-- Prompt Editor Overlay -->
+        <div id="prompt-overlay" class="settings-overlay">
+            <div class="settings-container">
+                <div class="settings-header">
+                    <h2 id="prompt-overlay-title">Edit Prompt</h2>
+                    <button id="prompt-close" aria-label="Close prompt editor">✕</button>
+                </div>
+                <div class="settings-content">
+                    <textarea id="prompt-content" class="config-editor" spellcheck="false">Loading...</textarea>
+                    <div class="settings-actions">
+                        <button id="save-prompt" class="save-button">Save Changes</button>
+                        <span id="prompt-save-status" class="save-status"></span>
                     </div>
                 </div>
-                <div id="output-files-grid" class="files-grid">
-                    <div class="placeholder">Select a folder to view files</div>
+            </div>
+        </div>
+
+        <!-- Routines Tab -->
+        <div id="routines-tab" class="tab-content">
+            <div class="routines-header">
+                <select id="routine-select">
+                    <option value="">Select routine...</option>
+                </select>
+            </div>
+
+            <div id="routines-stats" class="routines-stats hidden">
+                <div class="stat-card">
+                    <div class="stat-label">Total Processed</div>
+                    <div class="stat-value" id="stat-total">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Success</div>
+                    <div class="stat-value stat-success" id="stat-success">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Pending</div>
+                    <div class="stat-value stat-pending" id="stat-pending">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Success Rate</div>
+                    <div class="stat-value" id="stat-rate">0%</div>
                 </div>
             </div>
-            <div id="output-file-content" class="file-content hidden">
-                <div class="file-content-header">
-                    <h3 id="output-file-title">File Content</h3>
-                    <button id="close-output-content" class="btn-secondary">Close</button>
-                </div>
-                <div id="output-file-text" class="markdown-content"></div>
+
+            <div class="routines-main-content">
+                <aside class="routines-sidebar">
+                    <div id="routines-file-list"></div>
+                </aside>
+
+                <main class="routines-viewer">
+                    <div class="routines-viewer-header">
+                        <div class="file-info" id="selected-file-info">
+                            <span class="file-info-text">Select a file to view</span>
+                        </div>
+                        <div class="view-toggles">
+                            <button class="toggle-btn" data-view="input" title="View input">Input</button>
+                            <button class="toggle-btn active" data-view="output" title="View output">Output</button>
+                            <button class="toggle-btn" data-view="side-by-side" title="View side by side">Side by Side</button>
+                        </div>
+                    </div>
+                    <div id="routines-content">
+                        <div class="welcome">
+                            <h2>Select a routine</h2>
+                            <p>Choose a routine from the dropdown to view input and output files.</p>
+                        </div>
+                    </div>
+                </main>
             </div>
         </div>
     </div>
@@ -198,7 +233,7 @@ def create_stylesheet(assets_dir: str) -> None:
 :root { --bg-primary: #fff; --bg-secondary: #f6f6f6; --bg-hover: #e8e8e8; --text-primary: #000; --text-secondary: #666; --border: #ccc; --accent: #f60; --success: #4caf50; --error: #f44336; }
 [data-theme="dark"] { --bg-primary: #1a1a1a; --bg-secondary: #2a2a2a; --bg-hover: #3a3a3a; --text-primary: #e0e0e0; --text-secondary: #a0a0a0; --border: #444; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: Verdana, Geneva, sans-serif; font-size: 14px; line-height: 1.6; background: var(--bg-primary); color: var(--text-primary); }
+body { font-family: Verdana, Geneva, sans-serif; font-size: 14px; line-height: 1.6; background: var(--bg-primary); color: var(--text-primary); overflow-x: hidden; }
 .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
 header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 2px solid var(--accent); margin-bottom: 20px; }
 header h1 { font-size: 24px; color: var(--accent); }
@@ -272,6 +307,77 @@ header h1 { font-size: 24px; color: var(--accent); }
 .log-error { color: #ff4444; }
 .placeholder { text-align: center; padding: 50px; color: var(--text-secondary); font-style: italic; }
 .loading { text-align: center; padding: 30px; color: var(--text-secondary); }
+
+/* Prompts tab styles */
+.prompts-section { background: var(--bg-secondary); padding: 20px; border-radius: 4px; margin-bottom: 20px; }
+.prompts-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.prompts-header h2 { font-size: 18px; margin: 0; }
+.prompts-controls { display: flex; gap: 10px; }
+.prompts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
+.prompt-card { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 15px; cursor: pointer; transition: background 0.2s; }
+.prompt-card:hover { background: var(--bg-hover); }
+.prompt-name { font-weight: bold; font-size: 16px; margin-bottom: 8px; color: var(--text-primary); }
+.prompt-path { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; }
+.prompt-preview { font-size: 13px; color: var(--text-secondary); line-height: 1.4; max-height: 100px; overflow: hidden; text-overflow: ellipsis; white-space: pre-wrap; }
+
+/* Routines tab styles */
+.routines-header { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+.routines-header select { padding: 8px 12px; border-radius: 4px; background: var(--bg-primary); border: 1px solid var(--border); font-size: 14px; }
+
+.routines-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+.routines-stats.hidden { display: none; }
+.routines-stats .stat-card { background: var(--bg-secondary); padding: 15px; border-radius: 4px; border: 1px solid var(--border); text-align: center; }
+.routines-stats .stat-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px; }
+.routines-stats .stat-value { font-size: 28px; font-weight: bold; color: var(--accent); }
+.routines-stats .stat-success { color: var(--success); }
+.routines-stats .stat-pending { color: #ff9800; }
+
+.routines-main-content { display: grid; grid-template-columns: 350px 1fr; gap: 20px; min-height: 600px; overflow: hidden; }
+.routines-sidebar { background: var(--bg-secondary); border-radius: 4px; padding: 15px; overflow-y: auto; max-height: 800px; min-width: 0; }
+.routines-viewer { background: var(--bg-secondary); border-radius: 4px; display: flex; flex-direction: column; max-height: 800px; min-width: 0; overflow: hidden; }
+
+.routines-viewer-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid var(--border); }
+.file-info { flex: 1; }
+.file-info-text { font-size: 13px; color: var(--text-secondary); }
+.view-toggles { display: flex; gap: 5px; }
+.toggle-btn { background: var(--bg-primary); border: 1px solid var(--border); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: background 0.2s; }
+.toggle-btn:hover { background: var(--bg-hover); }
+.toggle-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+#routines-content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 20px; min-width: 0; }
+
+.routines-file-item { padding: 12px; margin-bottom: 10px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 3px; cursor: pointer; transition: background 0.2s; overflow: hidden; }
+.routines-file-item:hover { background: var(--bg-hover); }
+.routines-file-item.selected { border-color: var(--accent); border-width: 2px; }
+.routines-file-hash { font-size: 11px; color: var(--text-secondary); margin-bottom: 5px; font-family: monospace; }
+.routines-file-meta { font-size: 12px; color: var(--text-primary); }
+.routines-file-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; text-transform: uppercase; margin-left: 5px; }
+.routines-file-badge.has-input { background: #e3f2fd; color: #1976d2; }
+.routines-file-badge.has-output { background: #e8f5e9; color: #388e3c; }
+[data-theme="dark"] .routines-file-badge.has-input { background: #1a2a3a; color: #64b5f6; }
+[data-theme="dark"] .routines-file-badge.has-output { background: #1a2a1a; color: #81c784; }
+
+#routines-content .welcome { text-align: center; padding: 100px 20px; color: var(--text-secondary); }
+#routines-content h1 { font-size: 28px; margin-bottom: 20px; color: var(--text-primary); }
+#routines-content h2 { font-size: 22px; margin-top: 25px; margin-bottom: 15px; color: var(--text-primary); }
+#routines-content h3 { font-size: 18px; margin-top: 20px; margin-bottom: 10px; color: var(--text-primary); }
+#routines-content p { margin-bottom: 15px; line-height: 1.7; }
+#routines-content ul, #routines-content ol { margin-bottom: 15px; margin-left: 25px; }
+#routines-content li { margin-bottom: 8px; line-height: 1.6; }
+#routines-content pre { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 3px; padding: 15px; overflow-x: auto; margin-bottom: 15px; max-width: 100%; }
+#routines-content code { background: var(--bg-primary); padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 13px; }
+#routines-content pre code { background: none; padding: 0; }
+#routines-content table { border-collapse: collapse; width: 100%; margin-bottom: 15px; overflow-x: auto; display: block; }
+#routines-content th, #routines-content td { border: 1px solid var(--border); padding: 8px; text-align: left; }
+#routines-content th { background: var(--bg-secondary); }
+#routines-content a { color: var(--accent); text-decoration: none; }
+#routines-content a:hover { text-decoration: underline; }
+#routines-content blockquote { border-left: 3px solid var(--accent); padding-left: 15px; margin: 15px 0; color: var(--text-secondary); font-style: italic; }
+
+/* Side by side view */
+.side-by-side-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: 100%; min-width: 0; }
+.side-by-side-panel { overflow-y: auto; overflow-x: hidden; padding: 15px; background: var(--bg-primary); border-radius: 4px; border: 1px solid var(--border); min-width: 0; }
+.side-by-side-panel h3 { font-size: 16px; margin-bottom: 15px; color: var(--accent); padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 
 /* Markdown content styling */
 #input-file-text h1, #output-file-text h1,
@@ -380,8 +486,8 @@ function switchTab(name) {
     document.getElementById(`${name}-tab`).classList.add('active');
     state.currentTab = name;
     if (name === 'dashboard') loadDashboard();
-    else if (name === 'inputs') loadInputFolders();
-    else if (name === 'outputs') loadOutputFolders();
+    else if (name === 'prompts') loadPrompts();
+    else if (name === 'routines') loadRoutineSelect();
 }
 
 function setupEventListeners() {
@@ -438,30 +544,44 @@ function setupEventListeners() {
         }
     });
 
-    // Input folder dropdown
-    document.getElementById('input-folder-select').addEventListener('change', (e) => {
-        if (e.target.value) loadInputFiles(e.target.value);
-    });
-    document.getElementById('refresh-inputs').addEventListener('click', () => {
-        const folder = document.getElementById('input-folder-select').value;
-        if (folder) loadInputFiles(folder);
+    // Prompts controls
+    document.getElementById('refresh-prompts').addEventListener('click', loadPrompts);
+    document.getElementById('save-prompt').addEventListener('click', savePrompt);
+
+    // Prompt overlay controls
+    const promptOverlay = document.getElementById('prompt-overlay');
+    const promptClose = document.getElementById('prompt-close');
+
+    promptClose.addEventListener('click', () => {
+        promptOverlay.classList.remove('active');
     });
 
-    // Output folder dropdown
-    document.getElementById('output-folder-select').addEventListener('change', (e) => {
-        if (e.target.value) loadOutputFiles(e.target.value);
-    });
-    document.getElementById('refresh-outputs').addEventListener('click', () => {
-        const folder = document.getElementById('output-folder-select').value;
-        if (folder) loadOutputFiles(folder);
+    // Close overlay when clicking outside
+    promptOverlay.addEventListener('click', (e) => {
+        if (e.target === promptOverlay) {
+            promptOverlay.classList.remove('active');
+        }
     });
 
-    // File content viewers
-    document.getElementById('close-input-content').addEventListener('click', () => {
-        document.getElementById('input-file-content').classList.add('hidden');
+    // Routines controls
+    document.getElementById('routine-select').addEventListener('change', (e) => {
+        if (e.target.value) loadRoutineFiles(e.target.value);
     });
-    document.getElementById('close-output-content').addEventListener('click', () => {
-        document.getElementById('output-file-content').classList.add('hidden');
+
+    // View toggle buttons (moved to viewer area)
+    document.querySelectorAll('.routines-viewer-header .toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const routine = document.getElementById('routine-select').value;
+            if (!routine || !currentFilePair) return;
+
+            // Update button states
+            document.querySelectorAll('.routines-viewer-header .toggle-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Re-render with new view mode
+            currentViewMode = btn.dataset.view;
+            renderRoutineViewer();
+        });
     });
 }
 
@@ -591,152 +711,261 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Populate input folder dropdown when switching to inputs tab
-async function loadInputFolders() {
+// Routines management
+let currentRoutine = null;
+let currentViewMode = 'output';
+let currentFilePair = null;
+let routineFilePairs = []; // Array of {hash, inputFile, outputFile}
+
+// Populate routine dropdown
+async function loadRoutineSelect() {
+    const select = document.getElementById('routine-select');
     const res = await fetch('/api/web/folders');
     const folders = await res.json();
-    const select = document.getElementById('input-folder-select');
 
-    // Only populate if empty (except placeholder)
-    if (select.options.length <= 1) {
-        select.innerHTML = '<option value="">Select folder...</option>';
-        folders.forEach(folder => {
-            if (folder.enabled) {
-                const option = document.createElement('option');
-                option.value = folder.name;
-                option.textContent = folder.name;
-                select.appendChild(option);
-            }
-        });
-    }
+    select.innerHTML = '<option value="">Select routine...</option>';
+    folders.forEach(folder => {
+        if (folder.enabled) {
+            const option = document.createElement('option');
+            option.value = folder.name;
+            option.textContent = folder.name;
+            select.appendChild(option);
+        }
+    });
 }
 
-// Load input files for selected folder
-async function loadInputFiles(folderName) {
-    const container = document.getElementById('input-files-grid');
-    container.innerHTML = '<div class="loading">Loading files...</div>';
+// Extract hash from filename
+function extractHash(filename) {
+    // For input files: just the hash (e.g., "2e826333cb87f475f708d9cec64eea097b7d294581522b2777797d34c6cf7855.md")
+    // For output files: format is {folder}_{hash}_{timestamp}_{uuid}.md
+    // Extract the 64-char hash
+    const hashMatch = filename.match(/([a-f0-9]{64})/);
+    return hashMatch ? hashMatch[1] : null;
+}
+
+// Load files for selected routine
+async function loadRoutineFiles(routineName) {
+    currentRoutine = routineName;
+    currentFilePair = null;
+
+    const viewer = document.getElementById('routines-content');
+    const fileInfo = document.getElementById('selected-file-info');
+    fileInfo.innerHTML = '<span class="file-info-text">Select a file to view</span>';
+    viewer.innerHTML = '<div class="loading">Loading files...</div>';
 
     try {
-        const res = await fetch(`/api/web/files/input/${encodeURIComponent(folderName)}`);
-        const files = await res.json();
+        const [inputRes, outputRes] = await Promise.all([
+            fetch(`/api/web/files/input/${encodeURIComponent(routineName)}`),
+            fetch(`/api/web/files/output/${encodeURIComponent(routineName)}`)
+        ]);
 
-        if (!files || files.length === 0) {
-            container.innerHTML = '<div class="placeholder">No files found</div>';
-            return;
-        }
+        const inputFiles = await inputRes.json();
+        const outputFiles = await outputRes.json();
 
-        container.innerHTML = files.map(file => `
-            <div class="file-card" data-file="${file.path}">
-                <div class="file-name">${file.name}</div>
-                <div class="file-meta">${formatFileSize(file.size)}</div>
+        // Group files by hash
+        routineFilePairs = groupFilesByHash(inputFiles, outputFiles);
+
+        // Update stats
+        updateRoutineStats();
+
+        renderRoutineFileList();
+
+        // Show welcome message
+        viewer.innerHTML = `
+            <div class="welcome">
+                <h2>Select a file</h2>
+                <p>Choose a file from the sidebar to view its contents.</p>
+                <p><strong>Found ${routineFilePairs.length} file pairs</strong></p>
             </div>
-        `).join('');
-
-        container.querySelectorAll('.file-card').forEach(card => {
-            card.addEventListener('click', () => loadInputFileContent(card.dataset.file));
-        });
+        `;
     } catch (error) {
-        container.innerHTML = '<div class="error">Failed to load files</div>';
+        viewer.innerHTML = '<div class="error">Failed to load files</div>';
         console.error(error);
     }
 }
 
-// Load input file content
-async function loadInputFileContent(filePath) {
-    const viewer = document.getElementById('input-file-content');
-    const title = document.getElementById('input-file-title');
-    const text = document.getElementById('input-file-text');
+// Update stats display
+function updateRoutineStats() {
+    const statsContainer = document.getElementById('routines-stats');
+    const total = routineFilePairs.length;
+    const success = routineFilePairs.filter(p => p.outputFile).length;
+    const pending = routineFilePairs.filter(p => p.inputFile && !p.outputFile).length;
+    const rate = total > 0 ? ((success / total) * 100).toFixed(1) : 0;
 
-    title.textContent = filePath;
-    text.innerHTML = '<div class="loading">Loading...</div>';
-    viewer.classList.remove('hidden');
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-success').textContent = success;
+    document.getElementById('stat-pending').textContent = pending;
+    document.getElementById('stat-rate').textContent = rate + '%';
 
-    try {
-        const res = await fetch(`/api/web/file/content?path=${encodeURIComponent(filePath)}`);
-        const data = await res.json();
-
-        if (data.success) {
-            // Render as markdown
-            text.innerHTML = marked.parse(data.content);
-        } else {
-            text.innerHTML = '<div class="error">Error: ' + (data.error || 'Unknown error') + '</div>';
-        }
-    } catch (error) {
-        text.innerHTML = '<div class="error">Error: ' + error.message + '</div>';
-    }
+    statsContainer.classList.remove('hidden');
 }
 
-// Populate output folder dropdown
-async function loadOutputFolders() {
-    const res = await fetch('/api/web/folders');
-    const folders = await res.json();
-    const select = document.getElementById('output-folder-select');
+// Group input and output files by their hash
+function groupFilesByHash(inputFiles, outputFiles) {
+    const pairs = {};
 
-    if (select.options.length <= 1) {
-        select.innerHTML = '<option value="">Select folder...</option>';
-        select.innerHTML += '<option value="all">All Output Files</option>';
-        folders.forEach(folder => {
-            if (folder.enabled) {
-                const option = document.createElement('option');
-                option.value = folder.name;
-                option.textContent = folder.name + ' Output';
-                select.appendChild(option);
+    // Process input files
+    inputFiles.forEach(file => {
+        const hash = extractHash(file.name);
+        if (hash) {
+            if (!pairs[hash]) {
+                pairs[hash] = { hash: hash, inputFile: null, outputFile: null };
             }
-        });
-    }
+            pairs[hash].inputFile = file;
+        }
+    });
+
+    // Process output files
+    outputFiles.forEach(file => {
+        const hash = extractHash(file.name);
+        if (hash && pairs[hash]) {
+            pairs[hash].outputFile = file;
+        }
+    });
+
+    return Object.values(pairs);
 }
 
-// Load output files
-async function loadOutputFiles(folderName) {
-    const container = document.getElementById('output-files-grid');
-    container.innerHTML = '<div class="loading">Loading files...</div>';
+// Render file list in sidebar (grouped by hash)
+function renderRoutineFileList() {
+    const container = document.getElementById('routines-file-list');
+    container.innerHTML = '';
 
-    try {
-        const res = await fetch(`/api/web/files/output/${encodeURIComponent(folderName)}`);
-        const files = await res.json();
+    if (routineFilePairs.length === 0) {
+        container.innerHTML = '<div class="placeholder">No files found</div>';
+        return;
+    }
 
-        if (!files || files.length === 0) {
-            container.innerHTML = '<div class="placeholder">No files found</div>';
+    // Sort by hash (most recent first based on input file modification time)
+    const sorted = [...routineFilePairs].sort((a, b) => {
+        const aTime = a.inputFile?.modified || 0;
+        const bTime = b.inputFile?.modified || 0;
+        return bTime - aTime;
+    });
+
+    sorted.forEach(pair => {
+        const item = document.createElement('div');
+        item.className = 'routines-file-item';
+        item.dataset.hash = pair.hash;
+
+        // Build badges
+        let badges = '';
+        if (pair.inputFile) badges += '<span class="routines-file-badge has-input">Input</span>';
+        if (pair.outputFile) badges += '<span class="routines-file-badge has-output">Output</span>';
+
+        // Display truncated hash
+        const shortHash = pair.hash.substring(0, 16) + '...';
+
+        item.innerHTML = `
+            <div class="routines-file-hash">${shortHash}</div>
+            <div class="routines-file-meta">
+                ${badges}
+            </div>
+        `;
+
+        item.addEventListener('click', () => selectRoutineFilePair(pair));
+        container.appendChild(item);
+    });
+}
+
+// Select a file pair from the sidebar
+function selectRoutineFilePair(pair) {
+    currentFilePair = pair;
+
+    // Update selection in sidebar
+    document.querySelectorAll('.routines-file-item').forEach(item => {
+        item.classList.remove('selected');
+        if (item.dataset.hash === pair.hash) {
+            item.classList.add('selected');
+        }
+    });
+
+    // Update file info display
+    const fileInfo = document.getElementById('selected-file-info');
+    const shortHash = pair.hash.substring(0, 16) + '...';
+    fileInfo.innerHTML = `
+        <span class="file-info-text">
+            <strong>Hash:</strong> ${shortHash}<br>
+            ${pair.inputFile ? '✓ Has Input' : '✗ No Input'} | ${pair.outputFile ? '✓ Has Output' : '✗ No Output'}
+        </span>
+    `;
+
+    renderRoutineViewer();
+}
+
+// Render the main viewer area
+async function renderRoutineViewer() {
+    const viewer = document.getElementById('routines-content');
+
+    if (!currentFilePair) {
+        viewer.innerHTML = `
+            <div class="welcome">
+                <h2>Select a file</h2>
+                <p>Choose a file from the sidebar to view its contents.</p>
+            </div>
+        `;
+        return;
+    }
+
+    const { hash, inputFile, outputFile } = currentFilePair;
+    const shortHash = hash.substring(0, 16) + '...';
+
+    viewer.innerHTML = '<div class="loading">Loading...</div>';
+
+    if (currentViewMode === 'side-by-side') {
+        // Side by side view
+        if (inputFile && outputFile) {
+            const [inputRes, outputRes] = await Promise.all([
+                fetch(`/api/web/file/content?path=${encodeURIComponent(inputFile.path)}`),
+                fetch(`/api/web/file/content?path=${encodeURIComponent(outputFile.path)}`)
+            ]);
+
+            const inputData = await inputRes.json();
+            const outputData = await outputRes.json();
+
+            viewer.innerHTML = `
+                <div class="side-by-side-container">
+                    <div class="side-by-side-panel">
+                        <h3>Input</h3>
+                        ${inputData.success ? marked.parse(inputData.content) : '<div class="error">Failed to load</div>'}
+                    </div>
+                    <div class="side-by-side-panel">
+                        <h3>Output</h3>
+                        ${outputData.success ? marked.parse(outputData.content) : '<div class="error">Failed to load</div>'}
+                    </div>
+                </div>
+            `;
+        } else {
+            // Missing one of the files
+            const availableFile = inputFile || outputFile;
+            const res = await fetch(`/api/web/file/content?path=${encodeURIComponent(availableFile.path)}`);
+            const data = await res.json();
+            viewer.innerHTML = `
+                <p style="margin-bottom: 15px; color: var(--text-secondary);">
+                    ${!inputFile ? '⚠️ Input file not available' : ''}
+                    ${!outputFile ? '⚠️ Output file not available' : ''}
+                </p>
+                ${data.success ? marked.parse(data.content) : '<div class="error">Failed to load</div>'}
+            `;
+        }
+    } else if (currentViewMode === 'input') {
+        // Input view
+        if (!inputFile) {
+            viewer.innerHTML = '<div class="error">No input file available for this hash</div>';
             return;
         }
-
-        container.innerHTML = files.map(file => `
-            <div class="file-card" data-file="${file.path}">
-                <div class="file-name">${file.name}</div>
-                <div class="file-meta">${formatFileSize(file.size)}</div>
-            </div>
-        `).join('');
-
-        container.querySelectorAll('.file-card').forEach(card => {
-            card.addEventListener('click', () => loadOutputFileContent(card.dataset.file));
-        });
-    } catch (error) {
-        container.innerHTML = '<div class="error">Failed to load files</div>';
-        console.error(error);
-    }
-}
-
-// Load output file content
-async function loadOutputFileContent(filePath) {
-    const viewer = document.getElementById('output-file-content');
-    const title = document.getElementById('output-file-title');
-    const text = document.getElementById('output-file-text');
-
-    title.textContent = filePath;
-    text.innerHTML = '<div class="loading">Loading...</div>';
-    viewer.classList.remove('hidden');
-
-    try {
-        const res = await fetch(`/api/web/file/content?path=${encodeURIComponent(filePath)}`);
+        const res = await fetch(`/api/web/file/content?path=${encodeURIComponent(inputFile.path)}`);
         const data = await res.json();
-
-        if (data.success) {
-            text.innerHTML = marked.parse(data.content);
-        } else {
-            text.innerHTML = '<div class="error">Error: ' + (data.error || 'Unknown error') + '</div>';
+        viewer.innerHTML = data.success ? marked.parse(data.content) : '<div class="error">Failed to load</div>';
+    } else {
+        // Output view (default)
+        if (!outputFile) {
+            viewer.innerHTML = '<div class="error">No output file available for this hash</div>';
+            return;
         }
-    } catch (error) {
-        text.innerHTML = '<div class="error">Error: ' + error.message + '</div>';
+        const res = await fetch(`/api/web/file/content?path=${encodeURIComponent(outputFile.path)}`);
+        const data = await res.json();
+        viewer.innerHTML = data.success ? marked.parse(data.content) : '<div class="error">Failed to load</div>';
     }
 }
 
@@ -745,6 +974,117 @@ function formatFileSize(bytes) {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+// Prompts management
+let currentPromptPath = null;
+
+async function loadPrompts() {
+    const container = document.getElementById('prompts-grid');
+    container.innerHTML = '<div class="loading">Loading prompts...</div>';
+
+    try {
+        const res = await fetch('/api/web/prompts');
+        const data = await res.json();
+
+        if (!data.success || !data.prompts || data.prompts.length === 0) {
+            container.innerHTML = '<div class="placeholder">No prompts found</div>';
+            return;
+        }
+
+        container.innerHTML = data.prompts.map(prompt => `
+            <div class="prompt-card" data-path="${prompt.path}">
+                <div class="prompt-name">${prompt.name}</div>
+                <div class="prompt-path">${prompt.path}</div>
+                <div class="prompt-preview">${escapeHtml(prompt.preview || '')}</div>
+            </div>
+        `).join('');
+
+        container.querySelectorAll('.prompt-card').forEach(card => {
+            card.addEventListener('click', () => editPrompt(card.dataset.path));
+        });
+    } catch (error) {
+        container.innerHTML = '<div class="error">Failed to load prompts</div>';
+        console.error(error);
+    }
+}
+
+async function editPrompt(promptPath) {
+    const overlay = document.getElementById('prompt-overlay');
+    const title = document.getElementById('prompt-overlay-title');
+    const content = document.getElementById('prompt-content');
+
+    title.textContent = `Edit: ${promptPath}`;
+    content.value = 'Loading...';
+    overlay.classList.add('active');
+    currentPromptPath = promptPath;
+
+    try {
+        const res = await fetch(`/api/web/prompt?path=${encodeURIComponent(promptPath)}`);
+        const data = await res.json();
+
+        if (data.success) {
+            content.value = data.content;
+        } else {
+            content.value = 'Error loading prompt: ' + (data.error || 'Unknown error');
+        }
+    } catch (error) {
+        content.value = 'Error loading prompt: ' + error.message;
+    }
+}
+
+async function savePrompt() {
+    if (!currentPromptPath) {
+        alert('No prompt selected');
+        return;
+    }
+
+    const content = document.getElementById('prompt-content').value;
+    const saveButton = document.getElementById('save-prompt');
+    const saveStatus = document.getElementById('prompt-save-status');
+
+    saveButton.disabled = true;
+    saveButton.textContent = 'Saving...';
+    saveStatus.textContent = '';
+    saveStatus.className = 'save-status';
+
+    try {
+        const res = await fetch('/api/web/prompt', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({path: currentPromptPath, content})
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            saveStatus.textContent = '✓ Prompt saved! Reloading application...';
+            saveStatus.className = 'save-status success';
+            setTimeout(() => {
+                // Close the overlay
+                document.getElementById('prompt-overlay').classList.remove('active');
+                // Reload prompts
+                loadPrompts();
+                // Reload dashboard to pick up changes
+                loadDashboard();
+                // Clear the status message
+                setTimeout(() => {
+                    saveStatus.textContent = '';
+                }, 2000);
+            }, 1000);
+        } else {
+            saveStatus.textContent = '✗ Error: ' + (data.error || 'Unknown error');
+            saveStatus.className = 'save-status error';
+        }
+    } catch (error) {
+        saveStatus.textContent = '✗ Error: ' + error.message;
+        saveStatus.className = 'save-status error';
+    } finally {
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save Changes';
+        setTimeout(() => {
+            saveStatus.textContent = '';
+        }, 5000);
+    }
 }
 """
 
