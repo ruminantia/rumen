@@ -364,6 +364,11 @@ class FileMonitor:
                 # Process files with delay to avoid rate limits
                 import time as time_module
                 for i, file_path in enumerate(files_to_process, 1):
+                    # Check if file still exists (may have been processed by another stage)
+                    if not file_path.exists():
+                        logger.info(f"File {i}/{len(files_to_process)} no longer exists, skipping: {file_path.name}")
+                        continue
+
                     logger.info(f"Processing file {i}/{len(files_to_process)}: {file_path.name}")
                     self._process_file_sync(file_path, folder_config)
 
