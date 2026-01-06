@@ -1,19 +1,49 @@
-Please analyze the following content critique and its associated original content, then conduct comprehensive web research to address all identified gaps, verify claims, and gather missing context and expert perspectives.
+Please analyze the following content critique and conduct comprehensive web research to address all identified gaps, verify claims, and gather missing context and expert perspectives.
 
 **Content to Analyze and Research:**
 {content}
 
-## Research Instructions
+---
+
+## CRITICAL OUTPUT REQUIREMENTS
+
+You MUST produce output that follows the EXACT structure below. No deviations, no additional sections, no variations.
+
+**MANDATORY SECTIONS (in this exact order):**
+
+1. **Article Summary** (NEW - 2-3 sentences)
+2. **Verified Claims** (table format)
+3. **Conflicting Reports & Perspectives** (table format)
+4. **Expert Opinions** (table format)
+5. **Historical & Contextual Background** (4 subsections)
+6. **Statistics & Data** (table format)
+7. **Timeline & Chronology** (table format)
+8. **Key Players & Entities** (3 subsections)
+9. **What Could Not Be Verified** (table format)
+10. **Research Summary & Quality Assessment** (4 subsections)
+
+**STRICT FORMATTING RULES:**
+
+1. **NEVER include the original article content** in your output
+2. **USE TABLES** for all sections marked as "table format"
+3. **USE EXACTLY** the section headers provided below
+4. **DO NOT add** extra sections like "Closing Note" or "Final Assessment"
+5. **DO NOT deviate** from the structure
+6. **ALL sources** must be cited as `[domain.com](https://domain.com)` format
+7. **ALL dates** must be in format: "Month Day, Year" (e.g., "January 5, 2026")
+
+---
+
+## RESEARCH METHODOLOGY
 
 ### Step 1: Parse the Critique
-
-Extract ALL research needs from the critique:
-1. **Claims to Verify** - List every factual claim requiring verification, noting priority levels
-2. **Knowledge Gaps** - Identify missing information, context, and background
-3. **Unanswered Questions** - Extract all questions the critique identified
-4. **Expert Perspectives Needed** - Note what types of experts and opinions are missing
-5. **Data & Statistics Gaps** - List missing numbers, figures, and quantitative data
-6. **Alternative Viewpoints Missing** - Note what perspectives aren't represented
+Extract research needs:
+- Claims requiring verification (with priority levels)
+- Knowledge gaps and missing context
+- Unanswered questions
+- Expert perspectives needed
+- Data & statistics gaps
+- Alternative viewpoints missing
 
 ### Step 2: Conduct Research
 
@@ -49,157 +79,93 @@ For EACH identified need, use web search to:
 5. Check multiple outlets with different perspectives
 6. Pay attention to publication dates and update timestamps
 
-### Step 3: Synthesize and Structure
+---
 
-Organize your comprehensive research findings into the following structure:
+## OUTPUT STRUCTURE (FOLLOW THIS EXACTLY)
 
 ---
 
 # RESEARCHED INFORMATION PACKAGE
 
-## 1. Verified Claims
+## 0. Article Summary
 
-For each significant claim from the original content, provide:
-
-### Claim [Number]: [Claim text]
-
-**Verification Status**: [Choose ONE based on your research]
-
-**VERIFIED** if:
-- 3+ major outlets (Reuters, AP, BBC, CNN, NBC, NYT, Guardian) report it as fact
-- Court documentation or official government statements confirm it
-- Direct video/photo evidence from credible sources exists
-
-**PARTIALLY VERIFIED** if:
-- Core elements confirmed but details unclear
-- 1-2 major outlets report it but broader confirmation pending
-- Initial reporting confirmed but full picture not yet known
-
-**UNVERIFIED** if:
-- ZERO credible sources found mentioning it
-- Only speculation/opinion exists (no factual reporting)
-
-**DISPUTED** if:
-- Credible sources actively contradict each other with equal weight
-- Government explicitly denies what outlets report (both sides credible)
-
-**DEBUNKED** if:
-- Multiple credible sources prove it false
-- Fact-check organizations label it false with evidence
+Provide a concise 2-3 sentence summary of the original article's main topic and key points. Focus on what the article is about and its primary claims or narrative.
 
 ---
 
-**What the Original Content Said**: [Summary]
+## 1. Verified Claims
 
-**What Research Reveals**:
-- [Finding 1 from Source A with publication date]
-- [Finding 2 from Source B with publication date]
-- [Finding 3 from Source C with publication date]
+| Claim | Verification Status | Evidence & Sources | Confidence |
+|-------|-------------------|-------------------|------------|
+| [Brief claim description] | [VERIFIED/PARTIALLY VERIFIED/UNVERIFIED/DISPUTED/DEBUNKED] | • [Finding 1] from [source] on [date]<br>• [Finding 2] from [source] on [date] | [HIGH/MEDIUM/LOW] |
+| [Continue for all significant claims...] | | | |
 
-**Sources**:
-- [Source Name] - [URL] - [Publication Date] - [Brief credibility note]
-- [Source Name] - [URL] - [Publication Date] - [Brief credibility note]
-
-**Confidence Level**: [HIGH / MEDIUM / LOW]
-
-**Additional Context**: [Any important nuance, conditions, or limitations]
-
-**Conflicting Information**: [If sources disagree, detail all perspectives and explain which you find more credible and why]
+**Verification Status Definitions:**
+- **VERIFIED**: 3+ major outlets report as fact, OR official docs/court records confirm
+- **PARTIALLY VERIFIED**: Core elements confirmed but details unclear
+- **UNVERIFIED**: ZERO credible sources found (use sparingly)
+- **DISPUTED**: Credible sources actively contradict with equal weight
+- **DEBUNKED**: Multiple credible sources prove it false
 
 ---
 
 ## 2. Conflicting Reports & Perspectives
 
-For issues where sources disagree or multiple perspectives exist:
-
-### Issue [Number]: [Description of conflicting information]
-
-**Perspective A**: [Detailed description with sources]
-- Source: [URL]
-- Main points: [Bullet list]
-- Who holds this view: [Groups, individuals, regions]
-
-**Perspective B**: [Detailed description with sources]
-- Source: [URL]
-- Main points: [Bullet list]
-- Who holds this view: [Groups, individuals, regions]
-
-**Additional Perspectives**: [If more than 2 sides]
-
-**Resolution/Assessment**: [Is there consensus? Which perspective is more credible? Are they incompatible? What's the current state of the dispute?]
+| Issue | Perspective A | Perspective B | Assessment |
+|-------|--------------|--------------|------------|
+| [Description of conflicting information] | [Viewpoint A] with source: [domain.com]<br>- Key point 1<br>- Key point 2 | [Viewpoint B] with source: [domain.com]<br>- Key point 1<br>- Key point 2 | [Which is more credible? Are they incompatible?] |
+| [Continue for all conflicts...] | | | |
 
 ---
 
 ## 3. Expert Opinions
 
-For each type of expert perspective identified as missing:
-
-### Expert Area: [e.g., International Law, Venezuelan Politics, Arctic Security]
-
-**Expert 1**: [Name, credentials, affiliation]
-- **Opinion**: [Summary of their view]
-- **Source**: [URL, date, publication]
-- **Credibility**: [Why this expert is authoritative]
-- **Relevance**: [How their opinion informs understanding]
-
-**Expert 2**: [Name, credentials, affiliation]
-- [Continue for all relevant experts found...]
-
-**Synthesis**: [What do experts generally agree on? What do they disagree on? What are the range of expert opinions?]
+| Expert | Credentials & Affiliation | Opinion | Source |
+|--------|--------------------------|---------|--------|
+| [Name] | [Title, Organization] | [Summary of their view] | [domain.com](URL) |
+| [Continue for all experts...] | | | |
 
 ---
 
 ## 4. Historical & Contextual Background
 
-### Historical Context
+### 4.1 Historical Context
+
 [Provide necessary historical background to understand the current situation]
 
-**Key Historical Events**:
-- [Date]: [Event] - [Significance] - [Source]
-- [Continue for all relevant history...]
+**Key Historical Events:**
+- **[Date]**: [Event] - [Significance] ([source])
+- **[Continue for all relevant history...]**
 
-### Political Context
+### 4.2 Political Context
+
 [Explain the political landscape, relevant actors, and dynamics]
 
-### Economic Context
+### 4.3 Economic Context
+
 [Provide economic background relevant to the situation]
 
-### Social/Cultural Context
-[Explain social, cultural, or regional factors important for understanding]
+### 4.4 Geopolitical Context
 
-### Geopolitical Context
 [For international issues, explain the broader geopolitical dynamics]
 
 ---
 
 ## 5. Statistics & Data
 
-For each statistic or data point mentioned or needed:
-
-### Data Point: [Description]
-
-**Original Claim**: [What the original content stated, if anything]
-
-**Verified Data**:
-- [Statistic] - [Source] - [Date]
-- [Statistic] - [Source] - [Date]
-
-**Context for Data**: [What makes this statistic meaningful or important]
-
-**Limitations**: [Any caveats, margins of error, methodology issues]
-
-**Trends**: [If relevant, how this data has changed over time]
+| Data Point | Verified Value | Source | Date |
+|------------|----------------|--------|------|
+| [Description] | [Statistic] | [domain.com](URL) | [Month Day, Year] |
+| [Continue for all relevant statistics...] | | | |
 
 ---
 
 ## 6. Timeline & Chronology
 
-**Key Events** (in chronological order):
-
 | Date | Event | Significance | Sources |
 |------|-------|--------------|---------|
-| [Date] | [Event description] | [Why this matters] | [URLs] |
-| [Continue for all key events...] |
+| [Month Day, Year] | [Event description] | [Why this matters] | [domain1.com], [domain2.com] |
+| [Continue for all key events...] | | | |
 
 **Event Sequence Analysis**: [Brief explanation of how events connect and what the timeline reveals]
 
@@ -207,107 +173,72 @@ For each statistic or data point mentioned or needed:
 
 ## 7. Key Players & Entities
 
-### Individuals
+### 7.1 Individuals
 
-**Name**: [Role/Title]
-- **Affiliation**: [Organization, government, etc.]
-- **Stance/Position**: [Brief description of their position]
-- **Actions/Statements**: [Key things they've done or said relevant to this topic]
-- **Credibility/Influence**: [How credible or influential they are]
-- **Sources**: [URLs]
+| Name | Role/Title | Affiliation | Stance/Position | Key Actions/Statements | Sources |
+|------|-----------|-------------|----------------|----------------------|---------|
+| [Name] | [Title] | [Organization] | [Position] | [Key actions/statements] | [sources] |
+| [Continue for all key individuals...] | | | | | |
 
-### Organizations
+### 7.2 Organizations
 
-**Name**: [Organization]
-- **Type**: [Government, NGO, corporation, etc.]
-- **Position/Stance**: [Their view or role in this situation]
-- **Actions**: [What they've done]
-- **Credibility**: [How reliable or authoritative they are]
-- **Sources**: [URLs]
+| Name | Type | Position/Stance | Key Actions | Credibility | Sources |
+|------|------|----------------|-------------|-------------|---------|
+| [Name] | [Govt/NGO/Corp] | [Their view] | [What they've done] | [Rating] | [sources] |
+| [Continue for all key organizations...] | | | | | |
 
-### Countries/Regions
+### 7.3 Countries/Regions
 
-**Name**: [Country or region]
-- **Role/Interest**: [Their stake in this situation]
-- **Actions/Statements**: [What they've done or said]
-- **Sources**: [URLs]
+| Name | Role/Interest | Actions/Statements | Sources |
+|------|--------------|-------------------|---------|
+| [Country] | [Their stake] | [What they've done/said] | [sources] |
+| [Continue for all relevant countries...] | | | |
 
 ---
 
-## 8. Multiple Perspectives on Key Issues
+## 8. What Could Not Be Verified
 
-For each major contentious issue or question:
-
-### Issue: [Description of the issue]
-
-**Perspective 1: [Name of perspective]**
-- **Main Arguments**: [Bullet points of key arguments]
-- **Supporters**: [Who holds this view]
-- **Evidence Cited**: [What supports this view]
-- **Sources**: [URLs]
-
-**Perspective 2: [Name of perspective]**
-- [Continue for all significant perspectives...]
-
-**Current Status**: [Is this issue resolved? Ongoing? Deadlocked?]
-
-**Areas of Agreement**: [Even opposing sides may agree on some things - note these]
-
-**Areas of Disagreement**: [Clear statement of what's disputed]
+| Unverified Claim/Gap | Research Attempts | Outcome | Confidence |
+|---------------------|-------------------|---------|------------|
+| [Description] | [What searching revealed] | [Why it couldn't be verified] | [LOW/MEDIUM] |
+| [Continue for all unverified items...] | | | |
 
 ---
 
-## 9. What Could Not Be Verified
+## 9. Research Summary & Quality Assessment
 
-List claims, gaps, or questions that research could NOT adequately address:
+### 9.1 Completeness Assessment
 
-### Unverified Claim: [Description]
-- **What research found**: [Brief summary of attempts to verify]
-- **Why it couldn't be verified**: [Lack of sources, conflicting information, etc.]
-- **Confidence level**: [How likely it is to be true based on available evidence]
+**Thoroughly Verified**: [List areas where research was comprehensive]
 
-### Missing Information: [Description of gap]
-- **What research found**: [What searching revealed]
-- **Why information is missing**: [Not publicly available, too recent, etc.]
-- **Impact**: [How this gap affects understanding]
+**Partially Verified**: [List areas with some but incomplete verification]
 
----
+**Unknown**: [List areas that couldn't be verified]
 
-## 10. Research Summary & Quality Assessment
+### 9.2 Source Quality Overview
 
-### Completeness Assessment
-**What was thoroughly verified**: [List areas where research was comprehensive]
-**What was partially verified**: [List areas with some but incomplete verification]
-**What remains unknown**: [List areas that couldn't be verified]
+- **Number of Sources Consulted**: [Total count]
+- **Source Diversity**: [Range of perspectives, types of sources]
+- **Credibility**: [Overall assessment of source quality]
+- **Geographic/Cultural Diversity**: [Whether sources represent diverse viewpoints]
 
-### Source Quality Overview
-- **Number of sources consulted**: [Total count]
-- **Source diversity**: [Range of perspectives, types of sources]
-- **Source credibility**: [Overall assessment of source quality]
-- **Geographic/cultural diversity**: [Whether sources represent diverse viewpoints]
+### 9.3 Key Findings
 
-### Key Findings
-[3-5 bullet points of the most important verified information]
+1. [Most important verified information #1]
+2. [Most important verified information #2]
+3. [Most important verified information #3]
+4. [Most important verified information #4]
+5. [Most important verified information #5]
 
-### Most Significant Surprises
-[Any information that contradicted or significantly changed understanding from the original content]
+### 9.4 Limitations of This Research
 
-### Limitations of This Research
-- **Temporal limits**: [Information cutoff date, very recent developments]
-- **Language limits**: [Sources in certain languages may have been missed]
-- **Access limits**: [Paywalled sources, restricted information]
-- **Scope limits**: [Areas that could use deeper research]
+- **Temporal Limits**: [Information cutoff date]
+- **Language Limits**: [Sources in certain languages may have been missed]
+- **Access Limits**: [Paywalled sources, restricted information]
+- **Scope Limits**: [Areas that could use deeper research]
 
 ---
 
-## Formatting Requirements
+**END OF RESEARCH PACKAGE**
 
-- Use clear **section headers** (##) and **subheaders** (###)
-- Use **bullet points** for lists
-- Use **tables** for structured data (like timelines)
-- Use **bold** for emphasis on key terms
-- Include **blank lines** between sections
-- Always provide **full URLs** for sources
-- Use **blockquote format** (>) for any direct quotes from sources
-
-Focus on creating a comprehensive, well-sourced information package that provides everything needed to understand the topic from multiple angles. Include MORE information rather than less - downstream processes will filter and select what they need.
+Do not add any sections beyond Section 9. Do not include closing notes or additional commentary. Ensure ALL sources are cited as `[domain.com](URL)` format.
