@@ -73,6 +73,8 @@ class LLMClient:
 
             # Make the API call with retry logic
             max_retries = self.settings.retry_attempts
+            retrying_empty_response = False  # Track if we're retrying after empty response
+
             for attempt in range(max_retries):
                 try:
                     response = self.client.chat.completions.create(**completion_kwargs)
@@ -85,7 +87,18 @@ class LLMClient:
                         )
                         return content
                     else:
-                        raise ValueError("No content in response")
+                        # If we got an empty response with an :online model, retry without :online
+                        # The search already happened, so we don't need to search again
+                        if ":online" in self.settings.model and not retrying_empty_response:
+                            logger.warning(
+                                "Got empty response from :online model after successful search. "
+                                "Retrying without :online to avoid redundant search costs."
+                            )
+                            completion_kwargs["model"] = self.settings.model.replace(":online", "")
+                            retrying_empty_response = True
+                            continue  # Retry immediately without delay
+                        else:
+                            raise ValueError("No content in response")
 
                 except Exception as e:
                     error_str = str(e)
