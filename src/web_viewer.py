@@ -118,6 +118,11 @@ def create_index_html(viewer_dir: str) -> None:
                 </div>
             </div>
 
+            <div class="date-filter-section" id="dashboard-date-filter">
+                <span class="date-filter-label">Showing results for:</span>
+                <span class="date-filter-value" id="dashboard-current-date">Today</span>
+            </div>
+
             <div class="folders-section">
                 <h2>Routines</h2>
                 <div id="folders-grid" class="folders-grid">
@@ -177,6 +182,61 @@ def create_index_html(viewer_dir: str) -> None:
                 <select id="routine-select">
                     <option value="">Select routine...</option>
                 </select>
+            </div>
+
+            <div id="routine-details" class="routine-details hidden">
+                <div class="routine-details-header">
+                    <h3 id="routine-name">Routine Details</h3>
+                    <span id="routine-status" class="routine-status"></span>
+                </div>
+                <div class="routine-details-grid">
+                    <div class="detail-item">
+                        <span class="detail-label">Input Directory</span>
+                        <span class="detail-value" id="detail-input-directory">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Output Directory</span>
+                        <span class="detail-value" id="detail-output-directory">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Provider</span>
+                        <span class="detail-value" id="detail-provider">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Model</span>
+                        <span class="detail-value" id="detail-model">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Temperature</span>
+                        <span class="detail-value" id="detail-temperature">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Max Tokens</span>
+                        <span class="detail-value" id="detail-max-tokens">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Output Format</span>
+                        <span class="detail-value" id="detail-output-format">-</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Delete Input Files</span>
+                        <span class="detail-value" id="detail-delete-input">-</span>
+                    </div>
+                    <div class="detail-item detail-item-full">
+                        <span class="detail-label">
+                            System Prompt
+                            <span id="detail-system-prompt-source" class="detail-source"></span>
+                        </span>
+                        <pre class="detail-value detail-prompt" id="detail-system-prompt">-</pre>
+                    </div>
+                    <div class="detail-item detail-item-full">
+                        <span class="detail-label">
+                            User Prompt Template
+                            <span id="detail-user-prompt-source" class="detail-source"></span>
+                        </span>
+                        <pre class="detail-value detail-prompt" id="detail-user-prompt">-</pre>
+                    </div>
+                </div>
             </div>
 
             <div id="routines-stats" class="routines-stats hidden">
@@ -295,6 +355,9 @@ header h1 { font-size: 24px; color: var(--accent); }
 .tab-content.active { display: block; }
 .status-section, .folders-section, .config-section, .browser-section { background: var(--bg-secondary); padding: 20px; border-radius: 4px; margin-bottom: 20px; }
 .logs-section { margin-top: 30px; background: var(--bg-secondary); padding: 20px; border-radius: 4px; }
+.date-filter-section { background: var(--accent); color: white; padding: 12px 20px; border-radius: 4px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+.date-filter-label { font-size: 13px; font-weight: 600; }
+.date-filter-value { font-size: 14px; font-weight: bold; }
 .status-section h2, .folders-section h2, .config-section h2 { margin-bottom: 15px; font-size: 18px; }
 .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
 .status-card { background: var(--bg-primary); padding: 15px; border-radius: 4px; border: 1px solid var(--border); }
@@ -363,6 +426,23 @@ header h1 { font-size: 24px; color: var(--accent); }
 .routines-stats .stat-value { font-size: 28px; font-weight: bold; color: var(--accent); }
 .routines-stats .stat-success { color: var(--success); }
 .routines-stats .stat-pending { color: #ff9800; }
+
+/* Routine details section */
+.routine-details { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px; padding: 20px; margin-bottom: 20px; }
+.routine-details.hidden { display: none; }
+.routine-details-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.routine-details-header h3 { margin: 0; font-size: 16px; color: var(--text-primary); }
+.routine-status { padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+.routine-status.enabled { background: var(--success); color: white; }
+.routine-status.disabled { background: var(--error); color: white; }
+
+.routine-details-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.detail-item { display: flex; flex-direction: column; gap: 4px; }
+.detail-item-full { grid-column: 1 / -1; }
+.detail-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.detail-source { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: var(--accent); color: white; text-transform: none; font-weight: normal; }
+.detail-value { font-size: 13px; color: var(--text-primary); word-break: break-word; }
+.detail-prompt { background: var(--bg-primary); border: 1px solid var(--border); border-radius: 3px; padding: 10px; margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12px; max-height: 150px; overflow-y: auto; }
 
 .routines-main-content { display: grid; grid-template-columns: 350px 1fr; gap: 20px; min-height: 600px; overflow: hidden; }
 .routines-sidebar { background: var(--bg-secondary); border-radius: 4px; padding: 15px; overflow-y: auto; max-height: 800px; min-width: 0; }
@@ -671,31 +751,70 @@ function setupEventListeners() {
 }
 
 async function loadDashboard() {
-    const [statusRes, foldersRes] = await Promise.all([
-        fetch('/api/web/status'),
-        fetch('/api/web/folders')
-    ]);
+    // Build date filter parameter if a date is selected
+    const dateParam = state.currentDate ? `?date=${encodeURIComponent(state.currentDate)}` : '';
+
+    // Fetch basic status (doesn't need date filter)
+    const statusRes = await fetch('/api/web/status');
     const status = await statusRes.json();
-    const folders = await foldersRes.json();
-    
+
+    // Fetch folders list (doesn't need date filter)
+    const foldersRes = await fetch('/api/web/folders');
+    const foldersList = await foldersRes.json();
+
+    // Fetch detailed info for each folder with date filter
+    const folderDetailsPromises = foldersList.map(f =>
+        fetch(`/api/web/folders/${encodeURIComponent(f.name)}${dateParam}`)
+    );
+    const folderDetailsResponses = await Promise.all(folderDetailsPromises);
+    const folderDetails = await Promise.all(folderDetailsResponses.map(r => r.json()));
+
+    // Filter out failed requests and sum up totals
+    const validFolderDetails = folderDetails.filter(d => d.success);
+    const totalInputFiles = validFolderDetails.reduce((sum, f) => sum + (f.input_files || 0), 0);
+    const totalOutputFiles = validFolderDetails.reduce((sum, f) => sum + (f.output_files || 0), 0);
+    const enabledFolders = validFolderDetails.filter(f => f.enabled).length;
+
+    // Update date filter display
+    const dateDisplay = document.getElementById('dashboard-current-date');
+    if (state.currentDate) {
+        // Format date for display
+        const dateParts = state.currentDate.split('/');
+        const year = dateParts[0];
+        const month = dateParts[1];
+        const day = dateParts[2];
+        const dateObj = new Date(year, month - 1, day);
+        dateDisplay.textContent = dateObj.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    } else {
+        dateDisplay.textContent = 'All dates';
+    }
+
+    // Update status display
     document.querySelector('#file-monitor-status .status-value').textContent = status.file_monitor_running ? 'Running' : 'Stopped';
     document.querySelector('#file-monitor-status .status-value').className = 'status-value ' + (status.file_monitor_running ? 'running' : 'stopped');
-    document.getElementById('enabled-folders-count').textContent = status.enabled_folders;
-    document.getElementById('total-input-files').textContent = status.total_input_files;
-    document.getElementById('total-output-files').textContent = status.total_output_files;
-    
+    document.getElementById('enabled-folders-count').textContent = enabledFolders;
+    document.getElementById('total-input-files').textContent = totalInputFiles;
+    document.getElementById('total-output-files').textContent = totalOutputFiles;
+
+    // Update folders grid
     const grid = document.getElementById('folders-grid');
-    grid.innerHTML = folders.map(f => `
+    grid.innerHTML = validFolderDetails.map(f => `
         <div class="folder-card">
             <div class="folder-header">
                 <div class="folder-name">${f.name}</div>
                 <div class="folder-status ${f.enabled ? 'enabled' : 'disabled'}">${f.enabled ? 'Enabled' : 'Disabled'}</div>
             </div>
             <div class="folder-info">
-                <div>Path: ${f.path}</div>
+                <div>Path: ${f.input_directory}</div>
                 <div>Provider: ${f.provider}</div>
                 <div>Model: ${f.model}</div>
                 <div>Input files: ${f.input_files || 0}</div>
+                <div>Output files: ${f.output_files || 0}</div>
             </div>
         </div>
     `).join('');
@@ -828,6 +947,61 @@ function extractHash(filename) {
     return hashMatch ? hashMatch[1] : null;
 }
 
+// Load routine details
+async function loadRoutineDetails(routineName) {
+    try {
+        const res = await fetch(`/api/web/folders/${encodeURIComponent(routineName)}`);
+        const data = await res.json();
+
+        if (data.success) {
+            // Update routine details section
+            document.getElementById('routine-name').textContent = data.name;
+
+            const statusEl = document.getElementById('routine-status');
+            statusEl.textContent = data.enabled ? 'ENABLED' : 'DISABLED';
+            statusEl.className = `routine-status ${data.enabled ? 'enabled' : 'disabled'}`;
+
+            document.getElementById('detail-input-directory').textContent = data.input_directory;
+            document.getElementById('detail-output-directory').textContent = data.output_directory;
+            document.getElementById('detail-provider').textContent = data.provider;
+            document.getElementById('detail-model').textContent = data.model;
+            document.getElementById('detail-temperature').textContent = data.temperature;
+            document.getElementById('detail-max-tokens').textContent = data.max_tokens;
+            document.getElementById('detail-output-format').textContent = data.output_format;
+            document.getElementById('detail-delete-input').textContent = data.delete_input_files ? 'Yes' : 'No';
+            document.getElementById('detail-system-prompt').textContent = data.system_prompt;
+            document.getElementById('detail-user-prompt').textContent = data.user_prompt_template;
+
+            // Show prompt source indicators
+            const systemPromptSource = document.getElementById('detail-system-prompt-source');
+            const userPromptSource = document.getElementById('detail-user-prompt-source');
+
+            if (data.prompt_source_info && data.prompt_source_info.system_prompt_file) {
+                systemPromptSource.textContent = '📄 File';
+                systemPromptSource.title = data.prompt_source_info.system_prompt_file;
+            } else {
+                systemPromptSource.textContent = '';
+            }
+
+            if (data.prompt_source_info && data.prompt_source_info.user_prompt_file) {
+                userPromptSource.textContent = '📄 File';
+                userPromptSource.title = data.prompt_source_info.user_prompt_file;
+            } else {
+                userPromptSource.textContent = '';
+            }
+
+            // Show the routine details section
+            document.getElementById('routine-details').classList.remove('hidden');
+        } else {
+            console.error('Failed to load routine details:', data.error);
+            document.getElementById('routine-details').classList.add('hidden');
+        }
+    } catch (error) {
+        console.error('Error loading routine details:', error);
+        document.getElementById('routine-details').classList.add('hidden');
+    }
+}
+
 // Load files for selected routine
 async function loadRoutineFiles(routineName) {
     currentRoutine = routineName;
@@ -837,6 +1011,9 @@ async function loadRoutineFiles(routineName) {
     const fileInfo = document.getElementById('selected-file-info');
     fileInfo.innerHTML = '<span class="file-info-text">Select a file to view</span>';
     viewer.innerHTML = '<div class="loading">Loading files...</div>';
+
+    // Load routine details
+    await loadRoutineDetails(routineName);
 
     try {
         // Build URL with date filter if selected
@@ -908,7 +1085,11 @@ function groupFilesByHash(inputFiles, outputFiles) {
     // Process output files
     outputFiles.forEach(file => {
         const hash = extractHash(file.name);
-        if (hash && pairs[hash]) {
+        if (hash) {
+            // Create pair if it doesn't exist (for output-only files like from chew)
+            if (!pairs[hash]) {
+                pairs[hash] = { hash: hash, inputFile: null, outputFile: null };
+            }
             pairs[hash].outputFile = file;
         }
     });

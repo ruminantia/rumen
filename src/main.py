@@ -183,11 +183,17 @@ async def process_file_content(content: str, file_path: str, folder_config) -> b
 
         logger.info(f"Using provider: {folder_config.provider}, model: {folder_config.model}")
 
+        # Load prompts (from files or inline)
+        system_prompt = folder_config.load_system_prompt()
+        user_prompt_template = folder_config.load_user_prompt_template()
+
+        logger.info(f"Loaded system prompt ({len(system_prompt)} chars) and user template ({len(user_prompt_template)} chars)")
+
         # Process content with LLM
         processed_content = folder_llm_client.process_content(
             content=content,
-            system_prompt=folder_config.system_prompt,
-            user_prompt_template=folder_config.user_prompt_template,
+            system_prompt=system_prompt,
+            user_prompt_template=user_prompt_template,
         )
 
         # Save the result
@@ -552,6 +558,109 @@ async def get_web_folders():
     return folders
 
 
+@app.get("/api/web/folders/{folder_name}")
+async def get_web_folder_details(folder_name: str, date: Optional[str] = None):
+    """Get detailed configuration for a specific folder (no auth required for web UI)."""
+    if folder_name not in settings.folders:
+        return {"success": False, "error": "Folder not found"}
+
+    folder_config = settings.folders[folder_name]
+
+    # Get file counts (with optional date filter)
+    input_path = folder_config.input_directory
+    input_files = 0
+
+    if date:
+        # Count files for specific date
+        date_parts = date.split("/")
+        if len(date_parts) == 3:
+            # First check the direct date path (e.g., /app/bolus/pastures/2026/01/06/)
+            date_path = input_path / date_parts[0] / date_parts[1] / date_parts[2]
+            if date_path.exists() and date_path.is_dir():
+                input_files = len(list(date_path.glob("*.md"))) + len(list(date_path.glob("*.txt")))
+            else:
+                # If not found, search subdirectories (e.g., /app/pastures/{subdir}/2026/01/06/)
+                search_paths = []
+                for subdir in input_path.iterdir():
+                    if subdir.is_dir():
+                        date_path = subdir / date_parts[0] / date_parts[1] / date_parts[2]
+                        if date_path.exists() and date_path.is_dir():
+                            search_paths.append(date_path)
+
+                for search_path in search_paths:
+                    if search_path.exists():
+                        input_files += len(list(search_path.glob("*.md")))
+                        input_files += len(list(search_path.glob("*.txt")))
+        else:
+            # Invalid date format, count all files
+            if input_path.exists():
+                input_files = len(list(input_path.rglob("*.md"))) + len(list(input_path.rglob("*.txt")))
+    else:
+        # Count all files
+        if input_path.exists():
+            input_files = len(list(input_path.rglob("*.md"))) + len(list(input_path.rglob("*.txt")))
+
+    # Get output directory
+    if folder_config.output_directory:
+        output_base = folder_config.output_directory
+    else:
+        output_base = settings.output.output_directory
+
+    output_files = 0
+    if date:
+        # Count output files for specific date
+        date_parts = date.split("/")
+        if len(date_parts) == 3:
+            output_path = output_base / date_parts[0] / date_parts[1] / date_parts[2]
+            if output_path.exists():
+                output_files = len(list(output_path.glob("*.md"))) + len(list(output_path.glob("*.json")))
+        else:
+            # Invalid date format, count all files
+            if output_base.exists():
+                output_files = len(list(output_base.rglob("*.md"))) + len(list(output_base.rglob("*.json")))
+    else:
+        # Count all output files
+        if output_base.exists():
+            output_files = len(list(output_base.rglob("*.md"))) + len(list(output_base.rglob("*.json")))
+
+    # Load prompts (from files if specified, otherwise use inline values)
+    try:
+        system_prompt = folder_config.load_system_prompt()
+    except Exception as e:
+        system_prompt = f"Error loading system prompt: {e}"
+
+    try:
+        user_prompt_template = folder_config.load_user_prompt_template()
+    except Exception as e:
+        user_prompt_template = f"Error loading user prompt template: {e}"
+
+    # Add prompt file info if using files
+    prompt_source_info = {}
+    if folder_config.prompt_files.system_prompt_file:
+        prompt_source_info["system_prompt_file"] = str(folder_config.prompt_files.system_prompt_file)
+    if folder_config.prompt_files.user_prompt_file:
+        prompt_source_info["user_prompt_file"] = str(folder_config.prompt_files.user_prompt_file)
+
+    return {
+        "success": True,
+        "name": folder_config.name,
+        "input_directory": str(folder_config.input_directory),
+        "enabled": folder_config.enabled,
+        "provider": folder_config.provider,
+        "model": folder_config.model,
+        "temperature": folder_config.temperature,
+        "max_tokens": folder_config.max_tokens,
+        "output_format": folder_config.output_format,
+        "output_directory": str(folder_config.output_directory) if folder_config.output_directory else str(settings.output.output_directory),
+        "delete_input_files": folder_config.delete_input_files if folder_config.delete_input_files is not None else settings.file_monitor.delete_input_files,
+        "system_prompt": system_prompt,
+        "user_prompt_template": user_prompt_template,
+        "prompt_source_info": prompt_source_info,
+        "input_files": input_files,
+        "output_files": output_files,
+    }
+
+
 @app.get("/api/web/config")
 async def get_web_config():
     """Get config.ini content for web viewer (no auth required for web UI)."""
@@ -637,27 +746,35 @@ async def get_input_files(folder_name: str, date: Optional[str] = None):
 
         files = []
 
-        # If date filter is provided, search for that date pattern in all subdirectories
+        # If date filter is provided, search for that date pattern
         search_paths = [input_path]
         if date:
             date_parts = date.split("/")
             if len(date_parts) == 3:
-                # Find all subdirectories matching the date pattern (e.g., */YYYY/MM/DD/)
-                # This handles cases like /app/pastures/{subfolder}/YYYY/MM/DD/
-                from pathlib import Path
-                search_paths = []
-                for subdir in input_path.iterdir():
-                    if subdir.is_dir():
-                        date_path = subdir / date_parts[0] / date_parts[1] / date_parts[2]
-                        if date_path.exists() and date_path.is_dir():
-                            search_paths.append(date_path)
+                date_path = input_path / date_parts[0] / date_parts[1] / date_parts[2]
+                logger.info(f"Looking for input files in: {date_path}, exists: {date_path.exists()}")
+                if date_path.exists():
+                    search_paths = [date_path]
+                else:
+                    # Also check if the input directory has date subdirectories (for cases like /app/pastures/{year}/{month}/{day}/)
+                    search_paths = []
+                    for subdir in input_path.rglob("*"):
+                        if subdir.is_dir():
+                            potential_date_path = subdir / date_parts[0] / date_parts[1] / date_parts[2]
+                            if potential_date_path.exists() and potential_date_path.is_dir():
+                                search_paths.append(potential_date_path)
+                                logger.info(f"Found date path: {potential_date_path}")
+
+        logger.info(f"Input file search paths: {search_paths}")
 
         for search_path in search_paths:
             if not search_path.exists():
                 continue
 
+            found_count = 0
             for file_path in search_path.rglob("*.md"):
                 if file_path.is_file():
+                    found_count += 1
                     stat = file_path.stat()
                     files.append({
                         "name": file_path.name,
@@ -665,6 +782,8 @@ async def get_input_files(folder_name: str, date: Optional[str] = None):
                         "size": stat.st_size,
                         "modified": stat.st_mtime
                     })
+
+            logger.info(f"Found {found_count} .md files in {search_path}")
 
             for file_path in search_path.rglob("*.txt"):
                 if file_path.is_file():
@@ -676,6 +795,7 @@ async def get_input_files(folder_name: str, date: Optional[str] = None):
                         "modified": stat.st_mtime
                     })
 
+        logger.info(f"Returning {len(files)} input files for folder {folder_name}")
         return files
     except Exception as e:
         logger.error(f"Error listing input files: {e}")
@@ -716,28 +836,41 @@ async def get_output_files(folder_name: str, date: Optional[str] = None):
             # Get files for specific folder (if it has a custom output directory)
             if folder_name in settings.folders:
                 folder_config = settings.folders[folder_name]
+                logger.info(f"Getting output files for folder: {folder_name}")
+                logger.info(f"Folder config output_directory: {folder_config.output_directory}")
+
                 if folder_config.output_directory:
                     folder_output = folder_config.output_directory
                 else:
                     folder_output = output_path
+
+                logger.info(f"Base folder output path: {folder_output}")
 
                 # Apply date filter if provided
                 if date:
                     date_parts = date.split("/")
                     if len(date_parts) == 3:
                         folder_output = folder_output / date_parts[0] / date_parts[1] / date_parts[2]
+                        logger.info(f"With date filter: {folder_output}")
+
+                logger.info(f"Final search path: {folder_output}, exists: {folder_output.exists()}")
 
                 if folder_output.exists():
-                    for file_path in folder_output.rglob("*.md"):
+                    found_files = list(folder_output.rglob("*.md"))
+                    logger.info(f"Found {len(found_files)} files with rglob")
+                    for file_path in found_files:
                         if file_path.is_file():
                             stat = file_path.stat()
-                            files.append({
+                            file_info = {
                                 "name": file_path.name,
                                 "path": str(file_path),
                                 "size": stat.st_size,
                                 "modified": stat.st_mtime
-                            })
+                            }
+                            files.append(file_info)
+                            logger.info(f"Adding file: {file_info['name']}")
 
+        logger.info(f"Returning {len(files)} files for folder {folder_name}")
         return files
     except Exception as e:
         logger.error(f"Error listing output files: {e}")

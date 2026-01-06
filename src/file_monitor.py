@@ -358,8 +358,8 @@ class FileMonitor:
                 logger.info(f"Found {len(files_to_process)} unprocessed files to process (skipped {skipped_processed} already processed)")
 
                 if not files_to_process:
-                    logger.info("No unprocessed files found")
-                    return
+                    logger.info("No unprocessed files found in this folder")
+                    continue
 
                 # Process files with delay to avoid rate limits
                 import time as time_module
