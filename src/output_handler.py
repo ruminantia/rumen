@@ -93,6 +93,7 @@ class OutputHandler:
         metadata: Optional[Dict[str, Any]] = None,
         folder_config: Optional[FolderConfig] = None,
         original_filepath: Optional[str] = None,
+        skip_metadata: bool = False,
     ) -> Path:
         """
         Save processed result to a file.
@@ -105,6 +106,7 @@ class OutputHandler:
             metadata: Additional metadata to include
             folder_config: Folder configuration for custom output directory
             original_filepath: Full path to original file (for date extraction)
+            skip_metadata: If True, skip adding metadata frontmatter (for publication-ready output)
 
         Returns:
             Path to the saved file
@@ -128,7 +130,7 @@ class OutputHandler:
             if output_format.lower() == "json":
                 self._save_as_json(file_path, content, metadata)
             else:
-                self._save_as_markdown(file_path, content, metadata)
+                self._save_as_markdown(file_path, content, metadata, skip_metadata)
 
             logger.info(f"Saved result to: {file_path}")
             return file_path
@@ -183,7 +185,7 @@ class OutputHandler:
         return f"{base_name}.{extension}"
 
     def _save_as_markdown(
-        self, file_path: Path, content: str, metadata: Optional[Dict[str, Any]] = None
+        self, file_path: Path, content: str, metadata: Optional[Dict[str, Any]] = None, skip_metadata: bool = False
     ):
         """
         Save content as markdown file with optional metadata header.
@@ -192,10 +194,11 @@ class OutputHandler:
             file_path: Path to save the file
             content: Content to save
             metadata: Optional metadata to include as YAML frontmatter
+            skip_metadata: If True, skip adding metadata frontmatter (for publication-ready output)
         """
         with open(file_path, "w", encoding="utf-8") as f:
-            # Add YAML frontmatter if metadata is provided
-            if metadata:
+            # Add YAML frontmatter if metadata is provided and skip_metadata is False
+            if metadata and not skip_metadata:
                 f.write("---\n")
                 for key, value in metadata.items():
                     f.write(f"{key}: {value}\n")

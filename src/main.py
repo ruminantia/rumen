@@ -209,6 +209,7 @@ async def process_file_content(content: str, file_path: str, folder_config) -> b
                 "provider": folder_config.provider,
             },
             folder_config=folder_config,
+            skip_metadata=(folder_config.name == "digest"),  # Skip metadata for publication-ready digest output
         )
 
         logger.info(f"Successfully processed content from {file_path}")
