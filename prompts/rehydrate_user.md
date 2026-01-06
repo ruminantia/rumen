@@ -89,13 +89,27 @@ For EACH identified need, use web search to:
 
 ## 0. Executive Summary
 
-Provide a comprehensive 4-6 sentence summary that gives readers a complete picture. Include:
-- **What happened**: The core event or topic
-- **Key verified facts**: 2-3 most important verified details
-- **Why it matters**: Significance and implications
-- **Critical context**: Essential background for understanding
+Provide a comprehensive 4-6 sentence summary that gives readers a complete picture.
 
-This section should stand alone - readers should get the full story just from reading this summary.
+**MUST follow this exact structure:**
+
+**Sentence 1**: What happened (the core event or topic)
+
+**Sentence 2**: Key verified fact #1
+
+**Sentence 3**: Key verified fact #2 (most important detail)
+
+**Sentence 4**: Why this matters (significance and implications)
+
+**Sentence 5**: Critical context (essential background for understanding)
+
+**Sentence 6** (optional): Any additional nuance or caveat
+
+**REQUIREMENTS:**
+- Each sentence must be grammatically independent (no run-on sentences)
+- Total: 4-6 sentences, not more, not less
+- This section MUST stand alone - readers should understand the full story without reading further
+- Focus ONLY on VERIFIED facts - no disputed claims in the summary
 
 ---
 
