@@ -11,7 +11,7 @@ You MUST produce output that follows the EXACT structure below. No deviations, n
 
 **MANDATORY SECTIONS (in this exact order):**
 
-1. **Article Summary** (NEW - 2-3 sentences)
+1. **Executive Summary** (4-6 comprehensive sentences)
 2. **Verified Claims** (table format)
 3. **Conflicting Reports & Perspectives** (table format)
 4. **Expert Opinions** (table format)
@@ -87,9 +87,15 @@ For EACH identified need, use web search to:
 
 # RESEARCHED INFORMATION PACKAGE
 
-## 0. Article Summary
+## 0. Executive Summary
 
-Provide a concise 2-3 sentence summary of the original article's main topic and key points. Focus on what the article is about and its primary claims or narrative.
+Provide a comprehensive 4-6 sentence summary that gives readers a complete picture. Include:
+- **What happened**: The core event or topic
+- **Key verified facts**: 2-3 most important verified details
+- **Why it matters**: Significance and implications
+- **Critical context**: Essential background for understanding
+
+This section should stand alone - readers should get the full story just from reading this summary.
 
 ---
 

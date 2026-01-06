@@ -23,13 +23,9 @@ The pipeline takes raw scraped content, cleans it, critiques it, verifies claims
 │           ↓                                                                 │
 │  ┌──────────────────┐                                                       │
 │  │   3. REHYDRATE   │  Multi-source research with web search                 │
-│  └────────┬─────────┘                                                       │
+│  └──────────────────┘                                                       │
 │           ↓                                                                 │
-│  ┌──────────────────┐                                                       │
-│  │   4. DIGEST      │  Article assembly and polish                          │
-│  └────────┬─────────┘                                                       │
-│           ↓                                                                 │
-│  Polished News Article                                                      │
+│  Publication-Ready Research Package                                        │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
