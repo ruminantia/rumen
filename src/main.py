@@ -143,7 +143,7 @@ def reload_application_settings():
         return False
 
 
-async def process_file_content(content: str, file_path: str, folder_config) -> bool:
+async def process_file_content(content: str, file_path: str, folder_config) -> tuple[bool, bool, str]:
     """
     Process file content using LLM and save results.
 
@@ -153,8 +153,11 @@ async def process_file_content(content: str, file_path: str, folder_config) -> b
         folder_config: Folder configuration
 
     Returns:
-        True if processing was successful
+        Tuple of (success: bool, rejected: bool, rejection_reason: str)
     """
+    # Store original input content for potential appending
+    original_input_content = content
+
     try:
         logger.info(
             f"Processing content from {file_path} for folder {folder_config.name}"
@@ -196,7 +199,19 @@ async def process_file_content(content: str, file_path: str, folder_config) -> b
             user_prompt_template=user_prompt_template,
         )
 
-        # Save the result
+        # Check for rejection trigger words
+        rejected = False
+        rejection_reason = ""
+        if folder_config.rejection_trigger_words:
+            processed_content_lower = processed_content.lower()
+            for trigger_word in folder_config.rejection_trigger_words:
+                if trigger_word.lower() in processed_content_lower:
+                    logger.warning(f"Content from {file_path} rejected due to trigger word: {trigger_word}")
+                    rejected = True
+                    rejection_reason = f"Trigger word found: {trigger_word}"
+                    break
+
+        # Save the result (whether accepted or rejected)
         output_handler.save_result(
             content=processed_content,
             original_filename=file_path,
@@ -210,10 +225,17 @@ async def process_file_content(content: str, file_path: str, folder_config) -> b
             },
             folder_config=folder_config,
             skip_metadata=(folder_config.name == "digest"),  # Skip metadata for publication-ready digest output
+            rejected=rejected,
+            original_input_content=original_input_content,
+            append_input=folder_config.append_input_to_output,
         )
 
+        if rejected:
+            logger.info(f"Saved rejected content from {file_path}: {rejection_reason}")
+            return (True, True, rejection_reason)
+
         logger.info(f"Successfully processed content from {file_path}")
-        return True
+        return (True, False, "")
 
     except Exception as e:
         logger.error(f"Error processing content from {file_path}: {e}")
@@ -229,7 +251,7 @@ async def process_file_content(content: str, file_path: str, folder_config) -> b
             },
             folder_config=folder_config,
         )
-        return False
+        return (False, False, str(e))
 
 
 @asynccontextmanager
@@ -582,11 +604,12 @@ async def get_web_folder_details(folder_name: str, date: Optional[str] = None):
             else:
                 # If not found, search subdirectories (e.g., /app/pastures/{subdir}/2026/01/06/)
                 search_paths = []
-                for subdir in input_path.iterdir():
-                    if subdir.is_dir():
-                        date_path = subdir / date_parts[0] / date_parts[1] / date_parts[2]
-                        if date_path.exists() and date_path.is_dir():
-                            search_paths.append(date_path)
+                if input_path.exists() and input_path.is_dir():
+                    for subdir in input_path.iterdir():
+                        if subdir.is_dir():
+                            date_path = subdir / date_parts[0] / date_parts[1] / date_parts[2]
+                            if date_path.exists() and date_path.is_dir():
+                                search_paths.append(date_path)
 
                 for search_path in search_paths:
                     if search_path.exists():

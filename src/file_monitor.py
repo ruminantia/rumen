@@ -66,16 +66,16 @@ class FileProcessor:
 
     def _is_file_processed(self, file_path: Path) -> bool:
         """
-        Check if a file has already been processed.
+        Check if a file has already been processed or rejected.
 
         Args:
             file_path: Path to the file
 
         Returns:
-            True if the file has been processed
+            True if the file has been processed or rejected
         """
-        # Check if filename contains .processed. marker
-        return ".processed." in file_path.name
+        # Check if filename contains .processed. or .rejected. marker
+        return ".processed." in file_path.name or ".rejected." in file_path.name
 
     def _mark_file_processed(self, file_path: Path) -> bool:
         """
@@ -104,6 +104,55 @@ class FileProcessor:
             logger.error(f"Failed to mark file as processed {file_path}: {e}")
             return None
 
+    def _mark_file_rejected(self, file_path: Path, reason: str = "") -> bool:
+        """
+        Mark a file as rejected by renaming it with a .rejected. marker.
+
+        Args:
+            file_path: Path to the file
+            reason: Optional reason for rejection
+
+        Returns:
+            Path to the marked file if successful, None otherwise
+        """
+        try:
+            # Insert .rejected. before the file extension
+            # e.g., "document.md" -> "document.rejected.md"
+            stem = file_path.stem
+            suffix = file_path.suffix
+            new_name = f"{stem}.rejected{suffix}"
+            new_path = file_path.parent / new_name
+
+            # Rename the file
+            file_path.rename(new_path)
+            logger.info(f"Marked file as rejected: {file_path} -> {new_path}. Reason: {reason}")
+            return new_path
+
+        except Exception as e:
+            logger.error(f"Failed to mark file as rejected {file_path}: {e}")
+            return None
+
+    def _check_for_rejection_triggers(self, content: str, trigger_words: list[str]) -> tuple[bool, str]:
+        """
+        Check if content contains any rejection trigger words.
+
+        Args:
+            content: Content to check
+            trigger_words: List of trigger words to look for
+
+        Returns:
+            Tuple of (should_reject: bool, matched_word: str)
+        """
+        if not trigger_words:
+            return False, ""
+
+        content_lower = content.lower()
+        for word in trigger_words:
+            if word.lower() in content_lower:
+                return True, word
+
+        return False, ""
+
     async def process_file(self, file_path: Path, folder_config: FolderConfig) -> bool:
         """
         Process a single file.
@@ -129,12 +178,24 @@ class FileProcessor:
                 logger.warning(f"Empty file: {file_path}")
                 return False
 
-            # Call the processing callback
-            success = await self.process_callback(
+            # Call the processing callback (returns tuple: success, rejected, rejection_reason)
+            result = await self.process_callback(
                 content=content, file_path=file_path, folder_config=folder_config
             )
 
-            if success:
+            # Handle both old boolean return and new tuple return
+            if isinstance(result, tuple):
+                success, rejected, rejection_reason = result
+            else:
+                success = result
+                rejected = False
+                rejection_reason = ""
+
+            if success and rejected:
+                # File was rejected due to trigger word
+                self._mark_file_rejected(file_path, rejection_reason)
+                return True
+            elif success:
                 # Determine whether to delete input files (per-folder setting or global default)
                 should_delete = (
                     folder_config.delete_input_files
@@ -426,7 +487,13 @@ class FileMonitor:
                 user_prompt_template=folder_config.load_user_prompt_template(),
             )
 
-            # Save the result
+            # Check for rejection trigger words
+            should_reject, matched_word = self.file_processor._check_for_rejection_triggers(
+                processed_content,
+                folder_config.rejection_trigger_words
+            )
+
+            # Save the result (whether accepted or rejected)
             output_handler.save_result(
                 content=processed_content,
                 original_filename=file_path.name,
@@ -440,7 +507,15 @@ class FileMonitor:
                 },
                 folder_config=folder_config,
                 original_filepath=str(file_path),
+                rejected=should_reject,
+                original_input_content=content,
+                append_input=folder_config.append_input_to_output,
             )
+
+            if should_reject:
+                logger.warning(f"File {file_path} rejected due to trigger word: {matched_word}")
+                self.file_processor._mark_file_rejected(file_path, f"Trigger word found: {matched_word}")
+                return
 
             # Clean up the processed file if configured to do so
             should_delete = (

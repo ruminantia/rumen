@@ -94,6 +94,9 @@ class OutputHandler:
         folder_config: Optional[FolderConfig] = None,
         original_filepath: Optional[str] = None,
         skip_metadata: bool = False,
+        rejected: bool = False,
+        original_input_content: Optional[str] = None,
+        append_input: Optional[bool] = None,
     ) -> Path:
         """
         Save processed result to a file.
@@ -107,6 +110,9 @@ class OutputHandler:
             folder_config: Folder configuration for custom output directory
             original_filepath: Full path to original file (for date extraction)
             skip_metadata: If True, skip adding metadata frontmatter (for publication-ready output)
+            rejected: If True, mark the file as rejected in the filename
+            original_input_content: Original input content to append if append_input is True
+            append_input: If True, append original input content to output
 
         Returns:
             Path to the saved file
@@ -114,11 +120,16 @@ class OutputHandler:
         if output_format is None:
             output_format = self.settings.output_format
 
+        # Append original input content if requested
+        if append_input and original_input_content:
+            content = self._append_input_content(content, original_input_content)
+
         # Generate filename
         filename = self._generate_filename(
             original_filename=original_filename,
             folder_name=folder_name,
             output_format=output_format,
+            rejected=rejected,
         )
 
         # Get output directory with date-based subdirectory
@@ -144,6 +155,7 @@ class OutputHandler:
         original_filename: Optional[str] = None,
         folder_name: Optional[str] = None,
         output_format: str = "markdown",
+        rejected: bool = False,
     ) -> str:
         """
         Generate a filename for the output file.
@@ -152,6 +164,7 @@ class OutputHandler:
             original_filename: Original filename (for naming)
             folder_name: Name of the folder that triggered processing
             output_format: Output format (markdown, json)
+            rejected: If True, mark file as rejected in filename
 
         Returns:
             Generated filename
@@ -176,6 +189,10 @@ class OutputHandler:
         # Join components with underscores
         base_name = "_".join(components)
 
+        # Add rejection marker if needed
+        if rejected:
+            base_name = f"{base_name}.rejected"
+
         # Add appropriate extension
         if output_format.lower() == "json":
             extension = "json"
@@ -183,6 +200,26 @@ class OutputHandler:
             extension = "md"
 
         return f"{base_name}.{extension}"
+
+    def _append_input_content(self, processed_content: str, original_input: str) -> str:
+        """
+        Append original input content to processed output.
+
+        Args:
+            processed_content: The processed LLM output
+            original_input: The original input content
+
+        Returns:
+            Combined content with original input appended
+        """
+        separator = "\n\n" + "=" * 80 + "\n\n"
+        combined = (
+            processed_content
+            + separator
+            + "## Original Input Content\n\n"
+            + original_input
+        )
+        return combined
 
     def _save_as_markdown(
         self, file_path: Path, content: str, metadata: Optional[Dict[str, Any]] = None, skip_metadata: bool = False

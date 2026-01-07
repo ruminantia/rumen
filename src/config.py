@@ -102,6 +102,14 @@ class FolderConfig(BaseModel):
         default=None,
         description="Whether to delete input files after processing (None = use global setting)",
     )
+    rejection_trigger_words: Optional[List[str]] = Field(
+        default=None,
+        description="List of words that trigger file rejection if found in output",
+    )
+    append_input_to_output: Optional[bool] = Field(
+        default=None,
+        description="Whether to append original input content to output (None = use global setting)",
+    )
 
     @validator("input_directory")
     def validate_input_directory(cls, v):
@@ -380,9 +388,28 @@ class ConfigManager:
                 delete_input_files=section.getboolean("delete_input_files", None)
                 if section.get("delete_input_files") is not None
                 else None,
+                rejection_trigger_words=self._parse_rejection_trigger_words(section.get("rejection_trigger_words")),
+                append_input_to_output=section.getboolean("append_input_to_output", None)
+                if section.get("append_input_to_output") is not None
+                else None,
             )
 
         return folder_configs
+
+    def _parse_rejection_trigger_words(self, value: Optional[str]) -> Optional[List[str]]:
+        """Parse rejection trigger words from config string.
+
+        Args:
+            value: Comma-separated string of trigger words
+
+        Returns:
+            List of trigger words or None
+        """
+        if not value:
+            return None
+
+        words = [w.strip().lower() for w in value.split(",") if w.strip()]
+        return words if words else None
 
     def _load_provider_base_urls(self) -> Dict[str, str]:
         """Load provider-specific base URLs from config."""
