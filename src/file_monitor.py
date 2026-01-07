@@ -106,30 +106,34 @@ class FileProcessor:
 
     def _mark_file_rejected(self, file_path: Path, reason: str = "") -> bool:
         """
-        Mark a file as rejected by renaming it with a .rejected. marker.
+        Mark a file as rejected by renaming it with a .rejected. or .blurb. marker.
 
         Args:
             file_path: Path to the file
-            reason: Optional reason for rejection
+            reason: Optional reason for rejection (used to determine marker type)
 
         Returns:
             Path to the marked file if successful, None otherwise
         """
         try:
-            # Insert .rejected. before the file extension
-            # e.g., "document.md" -> "document.rejected.md"
+            # Determine marker type based on reason
+            # If reason contains "BLURB", use .blurb. marker, otherwise use .rejected.
+            marker = "blurb" if "BLURB" in reason.upper() else "rejected"
+
+            # Insert marker before the file extension
+            # e.g., "document.md" -> "document.blurb.md" or "document.rejected.md"
             stem = file_path.stem
             suffix = file_path.suffix
-            new_name = f"{stem}.rejected{suffix}"
+            new_name = f"{stem}.{marker}{suffix}"
             new_path = file_path.parent / new_name
 
             # Rename the file
             file_path.rename(new_path)
-            logger.info(f"Marked file as rejected: {file_path} -> {new_path}. Reason: {reason}")
+            logger.info(f"Marked file as {marker}: {file_path} -> {new_path}. Reason: {reason}")
             return new_path
 
         except Exception as e:
-            logger.error(f"Failed to mark file as rejected {file_path}: {e}")
+            logger.error(f"Failed to mark file as rejected/blurb {file_path}: {e}")
             return None
 
     def _check_for_rejection_triggers(self, content: str, trigger_words: list[str]) -> tuple[bool, str]:

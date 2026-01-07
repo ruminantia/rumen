@@ -7,7 +7,7 @@ services:
     volumes:
       - ./config:/app/config
       - ./input:/app/input
-      - ./bolus:/app/bolus
+      - ./output:/app/output
       - pastures:/app/pastures
     environment:
       - PYTHONPATH=/app/src

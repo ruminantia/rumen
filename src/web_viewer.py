@@ -463,6 +463,7 @@ header h1 { font-size: 24px; color: var(--accent); }
 .routines-file-item.selected { border-color: var(--accent); border-width: 2px; }
 .routines-file-item.rejected { border-left: 4px solid var(--error); }
 .routines-file-item.processed { border-left: 4px solid var(--success); }
+.routines-file-item.blurb { border-left: 4px solid #ff9800; }
 .routines-file-hash { font-size: 11px; color: var(--text-secondary); margin-bottom: 5px; font-family: monospace; }
 .routines-file-meta { font-size: 12px; color: var(--text-primary); }
 .routines-file-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; text-transform: uppercase; margin-left: 5px; }
@@ -470,10 +471,12 @@ header h1 { font-size: 24px; color: var(--accent); }
 .routines-file-badge.has-output { background: #e8f5e9; color: #388e3c; }
 .routines-file-badge.rejected { background: #ffebee; color: #c62828; }
 .routines-file-badge.processed { background: #e8f5e9; color: #2e7d32; }
+.routines-file-badge.blurb { background: #fff3e0; color: #ef6c00; }
 [data-theme="dark"] .routines-file-badge.has-input { background: #1a2a3a; color: #64b5f6; }
 [data-theme="dark"] .routines-file-badge.has-output { background: #1a2a1a; color: #81c784; }
 [data-theme="dark"] .routines-file-badge.rejected { background: #3a1a1a; color: #ef5350; }
 [data-theme="dark"] .routines-file-badge.processed { background: #1a2a1a; color: #66bb6a; }
+[data-theme="dark"] .routines-file-badge.blurb { background: #3a2a1a; color: #ffb74d; }
 
 #routines-content .welcome { text-align: center; padding: 100px 20px; color: var(--text-secondary); }
 #routines-content h1 { font-size: 28px; margin-bottom: 20px; color: var(--text-primary); }
@@ -1129,20 +1132,20 @@ function renderRoutineFileList() {
         let fileStatus = null;
         if (pair.inputFile) {
             const filename = pair.inputFile.name;
-            if (filename.includes('.rejected.')) {
-                fileStatus = 'rejected';
-                item.classList.add('rejected');
+            if (filename.includes('.rejected.') || filename.includes('.blurb.')) {
+                fileStatus = filename.includes('.blurb.') ? 'blurb' : 'rejected';
+                item.classList.add(fileStatus);
             } else if (filename.includes('.processed.')) {
                 fileStatus = 'processed';
                 item.classList.add('processed');
             }
         }
-        // Also check output file for rejected status
+        // Also check output file for status
         if (!fileStatus && pair.outputFile) {
             const filename = pair.outputFile.name;
-            if (filename.includes('.rejected.')) {
-                fileStatus = 'rejected';
-                item.classList.add('rejected');
+            if (filename.includes('.rejected.') || filename.includes('.blurb.')) {
+                fileStatus = filename.includes('.blurb.') ? 'blurb' : 'rejected';
+                item.classList.add(fileStatus);
             }
         }
 
@@ -1152,6 +1155,7 @@ function renderRoutineFileList() {
         if (pair.outputFile) badges += '<span class="routines-file-badge has-output">Output</span>';
         if (fileStatus === 'rejected') badges += '<span class="routines-file-badge rejected">Rejected</span>';
         if (fileStatus === 'processed') badges += '<span class="routines-file-badge processed">Accepted</span>';
+        if (fileStatus === 'blurb') badges += '<span class="routines-file-badge blurb">Blurb</span>';
 
         // Display truncated hash
         const shortHash = pair.hash.substring(0, 16) + '...';
